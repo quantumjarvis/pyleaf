@@ -11,6 +11,7 @@ members = [
     "pyleaf-boot",
     "pyleaf-core",
     "pyleaf-starter-sqlalchemy",
+    "pyleaf-test",
     "pyleaf-workspace",
 ]
 
@@ -535,6 +536,21 @@ requires-dist = [
 ]
 
 [[package]]
+name = "pyleaf-test"
+version = "0.1.0"
+source = { editable = "packages/pyleaf-test" }
+dependencies = [
+    { name = "pyleaf-boot" },
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pyleaf-boot", editable = "packages/pyleaf-boot" },
+    { name = "pytest", specifier = ">=8" },
+]
+
+[[package]]
 name = "pyleaf-workspace"
 version = "0.1.0"
 source = { virtual = "." }
@@ -545,6 +561,7 @@ dev = [
     { name = "pyleaf-boot" },
     { name = "pyleaf-core" },
     { name = "pyleaf-starter-sqlalchemy" },
+    { name = "pyleaf-test" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -559,6 +576,7 @@ dev = [
     { name = "pyleaf-boot", editable = "packages/pyleaf-boot" },
     { name = "pyleaf-core", editable = "packages/pyleaf-core" },
     { name = "pyleaf-starter-sqlalchemy", editable = "packages/pyleaf-starter-sqlalchemy" },
+    { name = "pyleaf-test", editable = "packages/pyleaf-test" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.23" },
     { name = "ruff", specifier = ">=0.5" },

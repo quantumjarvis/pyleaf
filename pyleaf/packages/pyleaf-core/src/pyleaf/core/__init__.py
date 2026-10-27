@@ -32,7 +32,7 @@ from .conditions import (
     Profile,
 )
 from .context import ApplicationContext
-from .definition import Scope
+from .definition import BeanDefinition, Scope
 from .environment import Environment, EnvVarSource, PropertySource
 from .errors import (
     BeanCreationError,
@@ -66,6 +66,7 @@ __all__ = [
     "Aspect",
     "Bean",
     "BeanCreationError",
+    "BeanDefinition",
     "BeanPostProcessor",
     "Before",
     "CircularDependency",

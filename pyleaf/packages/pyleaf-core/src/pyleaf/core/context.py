@@ -6,7 +6,7 @@ import asyncio
 import importlib.util
 import logging
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, TypeVar, overload
 
 from .aop import (
@@ -165,6 +165,13 @@ class ApplicationContext:
         self._report_extras: list[ConditionReportEntry] = []
         self._listeners: list[ListenerEntry] = []
         self._listeners_dirty = True
+        # Deferred bean overrides (override_bean): applied inside refresh()
+        # after scanning, so overrides may target scanned beans. Attempting
+        # one on an already-refreshed context is an error.
+        self._bean_overrides: list[
+            tuple[Any, Callable[[BeanDefinition | None], BeanDefinition]]
+        ] = []
+        self._refreshed = False
         # Expose the environment itself as an injectable, pre-built bean.
         self._registry.register(
             BeanDefinition(
@@ -313,6 +320,9 @@ class ApplicationContext:
         """
         if self._scan:
             scan_packages(self, self._scan, self._exclude)
+        # Queued bean overrides apply after scanning — so they may target
+        # scanned beans — but before conditions and instantiation.
+        self._apply_bean_overrides()
         # Two-phase condition evaluation: phase A drops defs whose class /
         # property / profile / custom conditions fail; phase B then checks
         # bean-presence conditions against the post-A registry so user beans
@@ -334,6 +344,82 @@ class ApplicationContext:
         for defn in self._registry.all():
             if defn.scope is Scope.SINGLETON and (eager or not defn.lazy):
                 self._get_or_create(defn)
+        self._refreshed = True
+
+    def override_bean(
+        self,
+        required: Any,
+        transform: Callable[[BeanDefinition | None], BeanDefinition],
+    ) -> None:
+        """Queue a bean override applied at the start of :meth:`refresh`.
+
+        ``required`` is a bean type (optionally
+        ``Annotated[T, Qualifier("name")]``) or a bean-name string.
+        ``transform`` receives the resolved :class:`BeanDefinition` — or
+        ``None`` when ``required`` matches nothing — and returns the
+        definition to register in its place. An override keeps the original
+        bean's name slot so dependents injecting by qualifier still resolve.
+
+        Overrides run inside ``refresh()`` after package scanning, so they
+        may target scanned beans. Calling this on an already-refreshed
+        context raises :class:`PyleafError` naming the bean.
+        """
+        if self._refreshed:
+            raise PyleafError(
+                f"Cannot override bean '{_type_name(required)}':"
+                " the context is already refreshed"
+            )
+        self._bean_overrides.append((required, transform))
+
+    def _apply_bean_overrides(self) -> None:
+        """Run queued overrides against the post-scan registry."""
+        if not self._bean_overrides:
+            return
+        for required, transform in self._bean_overrides:
+            old = self._resolve_for_override(required)
+            defn = transform(old)
+            if old is not None:
+                stale = self._singletons.pop(old.name, None)
+                if stale is not None:
+                    self._created = [b for b in self._created if b is not stale]
+                self._registry.remove(old.name)
+                if defn.name != old.name:
+                    # Overrides occupy the replaced bean's name slot so
+                    # qualifier-based dependents keep resolving.
+                    defn = replace(defn, name=old.name)
+            self._registry.register(defn)
+        self._bean_overrides.clear()
+        # Replacement defs invalidate memoized resolutions, AOP matches and
+        # the listener table (rebuilt lazily / by the refresh pipeline).
+        self._resolved.clear()
+        self._aspect_bindings = None
+        self._aop_matches.clear()
+        self._listeners_dirty = True
+
+    def _resolve_for_override(self, required: Any) -> BeanDefinition | None:
+        """Resolve the definition an override targets; None when absent."""
+        if isinstance(required, str):
+            if not self._registry.has(required):
+                return None
+            return self._registry.get(required)
+        bean_type, qualifier = peel_annotated(required)
+        cands = self._registry.candidates(bean_type)
+        if qualifier is not None:
+            cands = [c for c in cands if c.name == qualifier]
+        if not cands:
+            return None
+        if len(cands) == 1:
+            return cands[0]
+        primaries = [c for c in cands if c.primary]
+        if len(primaries) == 1:
+            return primaries[0]
+        listed = ", ".join(
+            f"{c.name} ({_type_name(c.bean_type)})" for c in cands
+        )
+        raise NoUniqueBean(
+            f"Multiple beans of type '{_type_name(bean_type)}' to override:"
+            f" {listed}; qualify by name or Annotated[..., Qualifier]"
+        )
 
     @property
     def condition_report(self) -> ConditionEvaluationReport:
@@ -423,7 +509,9 @@ class ApplicationContext:
         defs = [
             defn
             for defn in self._registry.all()
-            if defn.scope is Scope.SINGLETON and is_aspect(defn.bean_type)
+            if defn.scope is Scope.SINGLETON
+            and not defn.internal
+            and is_aspect(defn.bean_type)
         ]
         defs.sort(key=lambda d: (d.order, d.name))
         for defn in defs:
@@ -555,6 +643,7 @@ class ApplicationContext:
             defn
             for defn in self._registry.all()
             if defn.scope is Scope.SINGLETON
+            and not defn.internal
             and is_bean_post_processor(defn.bean_type)
         ]
         defs.sort(key=lambda d: (d.order, d.name))
