@@ -40,6 +40,7 @@ from .errors import (
     NoUniqueBean,
     PyleafError,
 )
+from .events import EventListener, EventPublisher
 from .lifecycle import PostConstruct, PreDestroy
 from .postprocess import BeanPostProcessor
 from .stereotypes import (
@@ -83,6 +84,8 @@ __all__ = [
     "Controller",
     "EnvVarSource",
     "Environment",
+    "EventListener",
+    "EventPublisher",
     "Invocation",
     "Lazy",
     "MethodInterceptor",

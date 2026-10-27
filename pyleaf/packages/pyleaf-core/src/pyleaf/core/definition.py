@@ -41,6 +41,10 @@ class BeanDefinition:
     dep_specs: Callable[[], list[DepSpec]] = _no_dep_specs
     # Conditions marked by @ConditionalOn* decorators (class or @Bean method).
     conditions: list[Any] = field(default_factory=list)
+    # Internal beans are framework plumbing registered by the context itself
+    # (environment, eventPublisher): injectable, but never advised or scanned
+    # for event listeners.
+    internal: bool = False
 
 
 class BeanRegistry:

@@ -37,6 +37,12 @@ from .errors import (
     NoUniqueBean,
     PyleafError,
 )
+from .events import (
+    EventPublisher,
+    ListenerEntry,
+    event_matches,
+    iter_event_listeners,
+)
 from .lifecycle import POST_CONSTRUCT_ATTR, PRE_DESTROY_ATTR, lifecycle_methods
 from .postprocess import AFTER_INIT_HOOK, BEFORE_INIT_HOOK, is_bean_post_processor
 from .resolver import (
@@ -151,12 +157,24 @@ class ApplicationContext:
             else Environment(sources=[EnvVarSource()])
         )
         self._condition_report = ConditionEvaluationReport()
+        self._listeners: list[ListenerEntry] = []
+        self._listeners_dirty = True
         # Expose the environment itself as an injectable, pre-built bean.
         self._registry.register(
             BeanDefinition(
                 name="environment",
                 bean_type=Environment,
                 factory=lambda: self._environment,
+                internal=True,
+            )
+        )
+        # Expose the context as the injectable event publisher.
+        self._registry.register(
+            BeanDefinition(
+                name="eventPublisher",
+                bean_type=EventPublisher,
+                factory=lambda: self,
+                internal=True,
             )
         )
 
@@ -170,6 +188,8 @@ class ApplicationContext:
         # bean; recomputed lazily per definition on next creation.
         self._aspect_bindings = None
         self._aop_matches.clear()
+        # A newly registered bean may declare event listeners.
+        self._listeners_dirty = True
         if getattr(cls, COMPONENT_ATTR, None) is not None:
             self._register_component(cls)
         elif getattr(cls, CONFIGURATION_ATTR, None) is not None:
@@ -283,6 +303,11 @@ class ApplicationContext:
         # instances. Aspect beans themselves are never wrapped.
         self._instantiate_aspects()
         self._build_aop_table()
+        # Listener discovery is static (class walk + resolved hints); the
+        # listener beans themselves are force-instantiated — ignoring lazy —
+        # so a listener nothing depends on still receives events.
+        self._build_listener_table()
+        self._instantiate_listeners()
         detect_cycles(self._registry)
         for defn in self._registry.all():
             if defn.scope is Scope.SINGLETON and (eager or not defn.lazy):
@@ -403,7 +428,7 @@ class ApplicationContext:
         self, defn: BeanDefinition
     ) -> dict[str, tuple[Callable[..., Any], list[_AdviceBinding]]]:
         cls = defn.bean_type
-        if not isinstance(cls, type) or is_aspect(cls):
+        if defn.internal or not isinstance(cls, type) or is_aspect(cls):
             return {}
         bindings = self._aspect_bindings_list()
         if not bindings:
@@ -494,6 +519,59 @@ class ApplicationContext:
         for defn in defs:
             self._post_processors.append(self._get_or_create(defn))
 
+    def _build_listener_table(self) -> None:
+        """Resolve every ``@EventListener`` method into an ordered entry.
+
+        Discovery is static — a class walk plus resolved type hints — so no
+        bean is instantiated here. Entries sort by (@Order, bean name); the
+        sort is stable, so same-bean listeners keep declaration order.
+        """
+        entries: list[ListenerEntry] = []
+        for defn in self._registry.all():
+            cls = defn.bean_type
+            if defn.internal or not isinstance(cls, type):
+                continue
+            for method_name, func in iter_event_listeners(cls):
+                owner = f"{_type_name(cls)}.{method_name}"
+                specs = callable_dependencies(func, owner, self._registry)
+                if len(specs) != 1:
+                    raise BeanCreationError(
+                        f"@EventListener method '{owner}' must declare"
+                        f" exactly one event parameter (got {len(specs)})"
+                    )
+                order = getattr(func, ORDER_ATTR, defn.order)
+                if not isinstance(order, int):
+                    order = defn.order
+                entries.append(
+                    ListenerEntry(
+                        bean_name=defn.name,
+                        method_name=method_name,
+                        event_type=specs[0].bean_type,
+                        is_async=asyncio.iscoroutinefunction(func),
+                        order=order,
+                    )
+                )
+        entries.sort(key=lambda e: (e.order, e.bean_name))
+        self._listeners = entries
+        self._listeners_dirty = False
+
+    def _instantiate_listeners(self) -> None:
+        """Force-create all singleton listener beans, ordered by (@Order, name).
+
+        Like post-processors and aspects, listener beans must exist before
+        regular beans: lazy defaults are ignored so a listener nothing
+        injects still receives events.
+        """
+        names = {entry.bean_name for entry in self._listeners}
+        defs = [
+            defn
+            for defn in self._registry.all()
+            if defn.name in names and defn.scope is Scope.SINGLETON
+        ]
+        defs.sort(key=lambda d: (d.order, d.name))
+        for defn in defs:
+            self._get_or_create(defn)
+
     @overload
     def get(self, required: type[T]) -> T: ...
 
@@ -536,6 +614,94 @@ class ApplicationContext:
     def get_bean(self, name: str) -> Any:
         """Resolve a bean by its registered name."""
         return self._get_or_create(self._registry.get(name))
+
+    def publish(self, event: object) -> None:
+        """Dispatch ``event`` to every matching listener, in listener order.
+
+        Sync listeners are invoked directly; a throwing listener is logged
+        and does not prevent later listeners (publish itself never raises
+        for a listener failure). Async listeners are scheduled on the
+        running loop when there is one, else run via ``asyncio.run``.
+        """
+        if self._listeners_dirty:
+            self._build_listener_table()
+        event_type = type(event)
+        for entry in self._listeners:
+            if not event_matches(event_type, entry.event_type):
+                continue
+            call = getattr(self.get_bean(entry.bean_name), entry.method_name)
+            if entry.is_async:
+                self._schedule_listener(call, entry, event)
+            else:
+                try:
+                    call(event)
+                except Exception:
+                    _logger.exception(
+                        "Event listener %s.%s raised handling %r",
+                        entry.bean_name,
+                        entry.method_name,
+                        event,
+                    )
+
+    async def publish_async(self, event: object) -> None:
+        """Dispatch ``event`` like :meth:`publish`, awaiting async listeners.
+
+        Listeners run sequentially in listener order — sync called inline,
+        async awaited — so mixed listeners keep a deterministic order.
+        """
+        if self._listeners_dirty:
+            self._build_listener_table()
+        event_type = type(event)
+        for entry in self._listeners:
+            if not event_matches(event_type, entry.event_type):
+                continue
+            call = getattr(self.get_bean(entry.bean_name), entry.method_name)
+            try:
+                if entry.is_async:
+                    await call(event)
+                else:
+                    call(event)
+            except Exception:
+                _logger.exception(
+                    "Event listener %s.%s raised handling %r",
+                    entry.bean_name,
+                    entry.method_name,
+                    event,
+                )
+
+    def _schedule_listener(
+        self,
+        call: Callable[..., Any],
+        entry: ListenerEntry,
+        event: object,
+    ) -> None:
+        """Run an async listener from sync ``publish``.
+
+        Scheduled as a task on the running loop when one exists, else run to
+        completion via ``asyncio.run``. The wrapper catches and logs listener
+        failures so they never propagate to the publisher or surface as
+        unretrieved task errors.
+        """
+
+        async def run() -> None:
+            try:
+                await call(event)
+            except Exception:
+                _logger.exception(
+                    "Event listener %s.%s raised handling %r",
+                    entry.bean_name,
+                    entry.method_name,
+                    event,
+                )
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is None:
+            asyncio.run(run())
+        else:
+            loop.create_task(run())
 
     def close(self) -> None:
         """Destroy singletons (reverse creation order), then drop the caches.
