@@ -58,6 +58,7 @@ from .scan import scan_packages
 from .stereotypes import (
     BEAN_ATTR,
     COMPONENT_ATTR,
+    CONFIG_PROPS_ATTR,
     CONFIGURATION_ATTR,
     LAZY_ATTR,
     ORDER_ATTR,
@@ -179,7 +180,8 @@ class ApplicationContext:
         )
 
     def register(self, cls: type[T]) -> type[T]:
-        """Register a component-stereotype or ``@Configuration`` class."""
+        """Register a component-stereotype, ``@Configuration`` or
+        ``@ConfigurationProperties`` (pyleaf-boot) class."""
         # New definitions may change the outcome of earlier resolutions
         # (extra candidate, new @Primary, qualifier match), so cached
         # definition lookups are stale.
@@ -194,6 +196,8 @@ class ApplicationContext:
             self._register_component(cls)
         elif getattr(cls, CONFIGURATION_ATTR, None) is not None:
             self._register_configuration(cls)
+        elif getattr(cls, CONFIG_PROPS_ATTR, None) is not None:
+            self._register_config_properties(cls)
         else:
             raise PyleafError(
                 f"{getattr(cls, '__name__', cls)} is neither a component"
@@ -231,6 +235,19 @@ class ApplicationContext:
         self._registry.register(config_defn)
         for method_name, func in _iter_bean_methods(cls):
             self._register_bean_method(cls, config_name, method_name, func)
+
+    def _register_config_properties(self, cls: type[Any]) -> None:
+        """Register a ``@ConfigurationProperties``-marked class (pyleaf-boot).
+
+        Extension point: the marker object attached by boot's decorator
+        builds the :class:`BeanDefinition` itself via
+        ``meta.build_definition(ctx, cls)`` — property binding (pydantic)
+        lives in boot while registration dispatch stays in core. The
+        resulting def is an ordinary singleton: conditions, AOP and bean
+        post-processors all apply.
+        """
+        meta = getattr(cls, CONFIG_PROPS_ATTR)
+        self._registry.register(meta.build_definition(self, cls))
 
     def _register_bean_method(
         self,
@@ -317,6 +334,11 @@ class ApplicationContext:
     def condition_report(self) -> ConditionEvaluationReport:
         """Per-definition outcomes of the last refresh's condition evaluation."""
         return self._condition_report
+
+    @property
+    def environment(self) -> Environment:
+        """The context's property environment."""
+        return self._environment
 
     def _evaluate_conditions(self) -> None:
         """Drop non-matching conditional defs; record every one in the report."""
@@ -738,6 +760,7 @@ class ApplicationContext:
             and (
                 getattr(bean_type, COMPONENT_ATTR, None) is not None
                 or getattr(bean_type, CONFIGURATION_ATTR, None) is not None
+                or getattr(bean_type, CONFIG_PROPS_ATTR, None) is not None
             )
         ):
             # A single dependency on a component that was never registered is

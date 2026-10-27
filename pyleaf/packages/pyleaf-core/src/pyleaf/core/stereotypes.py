@@ -13,6 +13,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 COMPONENT_ATTR = "__pyleaf_component__"
 CONFIGURATION_ATTR = "__pyleaf_configuration__"
+CONFIG_PROPS_ATTR = "__pyleaf_configprops__"
 BEAN_ATTR = "__pyleaf_bean__"
 PRIMARY_ATTR = "__pyleaf_primary__"
 LAZY_ATTR = "__pyleaf_lazy__"

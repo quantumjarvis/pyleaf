@@ -11,7 +11,11 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any
 
 from .errors import PyleafError
-from .stereotypes import COMPONENT_ATTR, CONFIGURATION_ATTR
+from .stereotypes import (
+    COMPONENT_ATTR,
+    CONFIG_PROPS_ATTR,
+    CONFIGURATION_ATTR,
+)
 
 if TYPE_CHECKING:
     from .context import ApplicationContext
@@ -44,6 +48,7 @@ def _is_stereotype(value: Any) -> bool:
     return isinstance(value, type) and (
         getattr(value, COMPONENT_ATTR, None) is not None
         or getattr(value, CONFIGURATION_ATTR, None) is not None
+        or getattr(value, CONFIG_PROPS_ATTR, None) is not None
     )
 
 
