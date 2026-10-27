@@ -9,6 +9,8 @@ from .errors import (
     NoUniqueBean,
     PyleafError,
 )
+from .lifecycle import PostConstruct, PreDestroy
+from .postprocess import BeanPostProcessor
 from .stereotypes import (
     Bean,
     Component,
@@ -26,6 +28,7 @@ __all__ = [
     "ApplicationContext",
     "Bean",
     "BeanCreationError",
+    "BeanPostProcessor",
     "CircularDependency",
     "Component",
     "Configuration",
@@ -34,6 +37,8 @@ __all__ = [
     "NoSuchBean",
     "NoUniqueBean",
     "Order",
+    "PostConstruct",
+    "PreDestroy",
     "Primary",
     "PyleafError",
     "Qualifier",

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+import logging
+from collections.abc import Callable, Iterator, Sequence
 from typing import Any, TypeVar, overload
 
 from .definition import DEFAULT_ORDER, BeanDefinition, BeanRegistry, Scope
@@ -13,6 +14,8 @@ from .errors import (
     NoUniqueBean,
     PyleafError,
 )
+from .lifecycle import POST_CONSTRUCT_ATTR, PRE_DESTROY_ATTR, lifecycle_methods
+from .postprocess import AFTER_INIT_HOOK, BEFORE_INIT_HOOK, is_bean_post_processor
 from .resolver import (
     DepKind,
     DepSpec,
@@ -22,6 +25,7 @@ from .resolver import (
     detect_cycles,
     peel_annotated,
 )
+from .scan import scan_packages
 from .stereotypes import (
     BEAN_ATTR,
     COMPONENT_ATTR,
@@ -36,6 +40,8 @@ from .stereotypes import (
 )
 
 T = TypeVar("T")
+
+_logger = logging.getLogger(__name__)
 
 
 def _type_name(tp: Any) -> str:
@@ -64,11 +70,19 @@ def _iter_bean_methods(cls: type[Any]) -> Iterator[tuple[str, Callable[..., Any]
 class ApplicationContext:
     """Dependency-injection container."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        scan: Sequence[str] | None = None,
+        exclude: Sequence[str] = (),
+    ) -> None:
         self._registry = BeanRegistry()
         self._singletons: dict[str, Any] = {}
         self._creating: list[str] = []
         self._resolved: dict[Any, BeanDefinition] = {}
+        self._scan = list(scan) if scan is not None else []
+        self._exclude = list(exclude)
+        self._post_processors: list[Any] = []
+        self._created: list[Any] = []
 
     def register(self, cls: type[T]) -> type[T]:
         """Register a component-stereotype or ``@Configuration`` class."""
@@ -164,16 +178,40 @@ class ApplicationContext:
         return cls(**kwargs)
 
     def refresh(self, eager: bool = False) -> None:
-        """Validate the static dependency graph, then pre-instantiate singletons.
+        """Scan packages, instantiate post-processors, validate the graph,
+        then pre-instantiate singletons.
 
-        Cycle detection runs before any instantiation. Afterwards, singletons
-        marked ``@Lazy(False)`` — and every singleton when ``eager=True`` —
-        are instantiated.
+        Scanning registers new definitions, so cycle detection runs after the
+        scan. Bean post-processors are force-instantiated (ordered by @Order,
+        then name) before cycle detection so they can process every bean —
+        including the eager singletons instantiated afterwards.
         """
+        if self._scan:
+            scan_packages(self, self._scan, self._exclude)
+        self._instantiate_post_processors()
         detect_cycles(self._registry)
         for defn in self._registry.all():
             if defn.scope is Scope.SINGLETON and (eager or not defn.lazy):
                 self._get_or_create(defn)
+
+    def _instantiate_post_processors(self) -> None:
+        """Force-create all singleton BPP beans, ordered by (@Order, name).
+
+        Processors are appended to ``self._post_processors`` as soon as they
+        exist, so an already-created post-processor applies to beans —
+        including later post-processors — created after it. Lazy defaults
+        are ignored: post-processors must exist before any regular bean.
+        """
+        defs = [
+            defn
+            for defn in self._registry.all()
+            if defn.scope is Scope.SINGLETON
+            and is_bean_post_processor(defn.bean_type)
+        ]
+        defs.sort(key=lambda d: (d.order, d.name))
+        self._post_processors = []
+        for defn in defs:
+            self._post_processors.append(self._get_or_create(defn))
 
     @overload
     def get(self, required: type[T]) -> T: ...
@@ -219,7 +257,23 @@ class ApplicationContext:
         return self._get_or_create(self._registry.get(name))
 
     def close(self) -> None:
-        """Drop all cached singletons."""
+        """Destroy singletons (reverse creation order), then drop the caches.
+
+        ``@PreDestroy`` hooks run on singleton beans only; prototype instances
+        are never destroyed. A failing hook is logged and does not prevent the
+        remaining beans from being destroyed.
+        """
+        for instance in reversed(self._created):
+            for method_name in lifecycle_methods(type(instance), PRE_DESTROY_ATTR):
+                try:
+                    getattr(instance, method_name)()
+                except Exception:
+                    _logger.exception(
+                        "Error running @PreDestroy '%s' on bean %r",
+                        method_name,
+                        instance,
+                    )
+        self._created.clear()
         self._singletons.clear()
 
     def _resolve_single(
@@ -296,7 +350,7 @@ class ApplicationContext:
             )
         self._creating.append(defn.name)
         try:
-            instance = defn.factory()
+            instance = self._apply_creation_pipeline(defn.factory(), defn.name)
         except PyleafError:
             raise
         except Exception as exc:
@@ -309,4 +363,26 @@ class ApplicationContext:
             self._creating.remove(defn.name)
         if defn.scope is Scope.SINGLETON:
             self._singletons[defn.name] = instance
+            # Record the actual creation moment (lazy singletons create out
+            # of registration order) so close() can destroy in reverse.
+            self._created.append(instance)
         return instance
+
+    def _apply_creation_pipeline(self, bean: Any, name: str) -> Any:
+        """Run the post-construction chain: BPP before -> @PostConstruct -> BPP after.
+
+        A post-processor may return a different object; the replacement is
+        what later processors, ``@PostConstruct`` discovery and the singleton
+        cache see. A processor is never applied to itself.
+        """
+        for bpp in self._post_processors:
+            hook = getattr(bpp, BEFORE_INIT_HOOK, None)
+            if callable(hook) and bpp is not bean:
+                bean = hook(bean, name)
+        for method_name in lifecycle_methods(type(bean), POST_CONSTRUCT_ATTR):
+            getattr(bean, method_name)()
+        for bpp in self._post_processors:
+            hook = getattr(bpp, AFTER_INIT_HOOK, None)
+            if callable(hook) and bpp is not bean:
+                bean = hook(bean, name)
+        return bean
