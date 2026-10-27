@@ -1,0 +1,9 @@
+app:
+  greeting: "Hello from pyleaf!"
+  datasource:
+    url: "sqlite:///:memory:"
+    pool_size: 5
+    echo: false
+pyleaf:
+  logging:
+    level: INFO
