@@ -2,10 +2,24 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Callable, Iterator, Sequence
+from dataclasses import dataclass
 from typing import Any, TypeVar, overload
 
+from .aop import (
+    ADVICE_ATTR,
+    AdviceSpec,
+    Invocation,
+    Pointcut,
+    advice_order,
+    compile_link,
+    is_aspect,
+    iter_advices,
+    iter_candidate_methods,
+    make_wrapper,
+)
 from .definition import DEFAULT_ORDER, BeanDefinition, BeanRegistry, Scope
 from .errors import (
     BeanCreationError,
@@ -49,6 +63,20 @@ def _type_name(tp: Any) -> str:
     return name if isinstance(name, str) else str(tp)
 
 
+@dataclass(frozen=True)
+class _AdviceBinding:
+    """One advice method matched against bean methods, ordered and compiled
+    into a chain link at wrap time."""
+
+    aspect_name: str
+    aspect_type: type[Any]
+    advice_method: str
+    func: Callable[..., Any]
+    kind: str
+    order: int
+    pointcut: Pointcut
+
+
 def _iter_bean_methods(cls: type[Any]) -> Iterator[tuple[str, Callable[..., Any]]]:
     """Yield ``(method_name, function)`` for each ``@Bean``-marked method."""
     seen: set[str] = set()
@@ -83,6 +111,10 @@ class ApplicationContext:
         self._exclude = list(exclude)
         self._post_processors: list[Any] = []
         self._created: list[Any] = []
+        self._aspect_bindings: list[_AdviceBinding] | None = None
+        self._aop_matches: dict[
+            str, dict[str, tuple[Callable[..., Any], list[_AdviceBinding]]]
+        ] = {}
 
     def register(self, cls: type[T]) -> type[T]:
         """Register a component-stereotype or ``@Configuration`` class."""
@@ -90,6 +122,10 @@ class ApplicationContext:
         # (extra candidate, new @Primary, qualifier match), so cached
         # definition lookups are stale.
         self._resolved.clear()
+        # A newly registered aspect changes the match set of every existing
+        # bean; recomputed lazily per definition on next creation.
+        self._aspect_bindings = None
+        self._aop_matches.clear()
         if getattr(cls, COMPONENT_ATTR, None) is not None:
             self._register_component(cls)
         elif getattr(cls, CONFIGURATION_ATTR, None) is not None:
@@ -189,10 +225,140 @@ class ApplicationContext:
         if self._scan:
             scan_packages(self, self._scan, self._exclude)
         self._instantiate_post_processors()
+        # Aspects are beans too: force-instantiate them (with DI and the BPP
+        # phase) before compiling the match table so advice can bind to live
+        # instances. Aspect beans themselves are never wrapped.
+        self._instantiate_aspects()
+        self._build_aop_table()
         detect_cycles(self._registry)
         for defn in self._registry.all():
             if defn.scope is Scope.SINGLETON and (eager or not defn.lazy):
                 self._get_or_create(defn)
+
+    def _instantiate_aspects(self) -> None:
+        """Force-create all singleton aspect beans, ordered by (@Order, name)."""
+        defs = [
+            defn
+            for defn in self._registry.all()
+            if defn.scope is Scope.SINGLETON and is_aspect(defn.bean_type)
+        ]
+        defs.sort(key=lambda d: (d.order, d.name))
+        for defn in defs:
+            self._get_or_create(defn)
+
+    def _aspect_bindings_list(self) -> list[_AdviceBinding]:
+        """Collect every advice method declared on registered aspect beans."""
+        if self._aspect_bindings is None:
+            bindings: list[_AdviceBinding] = []
+            for defn in self._registry.all():
+                cls = defn.bean_type
+                if not is_aspect(cls):
+                    continue
+                class_order = getattr(cls, ORDER_ATTR, DEFAULT_ORDER)
+                if not isinstance(class_order, int):
+                    class_order = DEFAULT_ORDER
+                for method_name, func in iter_advices(cls):
+                    spec: AdviceSpec = getattr(func, ADVICE_ATTR)
+                    bindings.append(
+                        _AdviceBinding(
+                            aspect_name=defn.name,
+                            aspect_type=cls,
+                            advice_method=method_name,
+                            func=func,
+                            kind=spec.kind,
+                            order=advice_order(func, class_order),
+                            pointcut=spec.pointcut,
+                        )
+                    )
+            self._aspect_bindings = bindings
+        return self._aspect_bindings
+
+    def _build_aop_table(self) -> None:
+        """Precompute ``bean def -> {method: ordered advices}`` for every bean.
+
+        Matching is static (against the bean class), so lazy beans created
+        later reuse the cached table. A sync/async mismatch between a matched
+        advice and its target method fails here at ``refresh()``.
+        """
+        for defn in self._registry.all():
+            if defn.name not in self._aop_matches:
+                self._aop_matches[defn.name] = self._match_defn(defn)
+
+    def _match_defn(
+        self, defn: BeanDefinition
+    ) -> dict[str, tuple[Callable[..., Any], list[_AdviceBinding]]]:
+        cls = defn.bean_type
+        if not isinstance(cls, type) or is_aspect(cls):
+            return {}
+        bindings = self._aspect_bindings_list()
+        if not bindings:
+            return {}
+        matched: dict[str, tuple[Callable[..., Any], list[_AdviceBinding]]] = {}
+        for method_name, func in iter_candidate_methods(cls):
+            hits = [b for b in bindings if b.pointcut.matches(cls, method_name, func)]
+            if not hits:
+                continue
+            is_async = asyncio.iscoroutinefunction(func)
+            for binding in hits:
+                advice_is_async = asyncio.iscoroutinefunction(binding.func)
+                if advice_is_async != is_async:
+                    raise PyleafError(
+                        f"Aspect {binding.aspect_type.__name__}."
+                        f"{binding.advice_method}: "
+                        f"{'async' if advice_is_async else 'sync'} advice"
+                        f" cannot intercept {'async' if is_async else 'sync'}"
+                        f" method {_type_name(cls)}.{method_name}"
+                    )
+            hits.sort(key=lambda b: b.order)
+            matched[method_name] = (func, hits)
+        return matched
+
+    def _compile_link(self, binding: _AdviceBinding) -> Callable[[Invocation], Any]:
+        """Bind an advice to its aspect instance and compile a chain link."""
+        call: Callable[[Invocation], Any]
+        aspect = self._singletons.get(binding.aspect_name)
+        if aspect is not None:
+            call = getattr(aspect, binding.advice_method)
+        else:
+            # The aspect is mid-creation (an advised bean is one of its own
+            # dependencies): resolve the aspect instance on first invocation.
+            def lazy_call(inv: Invocation) -> Any:
+                instance = self.get_bean(binding.aspect_name)
+                return getattr(instance, binding.advice_method)(inv)
+
+            call = lazy_call
+        return compile_link(
+            call, binding.kind, asyncio.iscoroutinefunction(binding.func)
+        )
+
+    def _apply_aop(self, bean: Any, defn: BeanDefinition) -> Any:
+        """Final creation stage: patch matched methods on the instance.
+
+        Interceptors live in the instance dict so self-invocation is
+        intercepted too. Beans with no matching pointcut get zero attribute
+        writes; ``__slots__`` classes that would match fail loudly.
+        """
+        matched = self._aop_matches.get(defn.name)
+        if matched is None:
+            # Definition registered after refresh() (on-demand registration).
+            matched = self._aop_matches[defn.name] = self._match_defn(defn)
+        if not matched:
+            return bean
+        for method_name, (func, bindings) in matched.items():
+            if not hasattr(bean, method_name):
+                continue
+            links = [self._compile_link(b) for b in bindings]
+            wrapper = make_wrapper(bean, method_name, func, links)
+            try:
+                setattr(bean, method_name, wrapper)
+            except AttributeError as exc:
+                raise BeanCreationError(
+                    f"Error creating bean '{defn.name}'"
+                    f" ({_type_name(defn.bean_type)}): cannot intercept"
+                    f" method '{method_name}': instance does not allow"
+                    " attribute patching (e.g. __slots__)"
+                ) from exc
+        return bean
 
     def _instantiate_post_processors(self) -> None:
         """Force-create all singleton BPP beans, ordered by (@Order, name).
@@ -350,7 +516,7 @@ class ApplicationContext:
             )
         self._creating.append(defn.name)
         try:
-            instance = self._apply_creation_pipeline(defn.factory(), defn.name)
+            instance = self._apply_creation_pipeline(defn.factory(), defn)
         except PyleafError:
             raise
         except Exception as exc:
@@ -368,13 +534,15 @@ class ApplicationContext:
             self._created.append(instance)
         return instance
 
-    def _apply_creation_pipeline(self, bean: Any, name: str) -> Any:
-        """Run the post-construction chain: BPP before -> @PostConstruct -> BPP after.
+    def _apply_creation_pipeline(self, bean: Any, defn: BeanDefinition) -> Any:
+        """Run the post-construction chain:
+        BPP before -> @PostConstruct -> BPP after -> AOP method patching.
 
         A post-processor may return a different object; the replacement is
         what later processors, ``@PostConstruct`` discovery and the singleton
         cache see. A processor is never applied to itself.
         """
+        name = defn.name
         for bpp in self._post_processors:
             hook = getattr(bpp, BEFORE_INIT_HOOK, None)
             if callable(hook) and bpp is not bean:
@@ -385,4 +553,4 @@ class ApplicationContext:
             hook = getattr(bpp, AFTER_INIT_HOOK, None)
             if callable(hook) and bpp is not bean:
                 bean = hook(bean, name)
-        return bean
+        return self._apply_aop(bean, defn)

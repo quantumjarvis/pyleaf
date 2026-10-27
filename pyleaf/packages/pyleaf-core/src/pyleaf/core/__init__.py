@@ -1,5 +1,21 @@
 """Core functionality for pyleaf framework."""
 
+from .aop import (
+    After,
+    AfterReturning,
+    AfterThrowing,
+    Around,
+    Aspect,
+    Before,
+    Invocation,
+    MethodInterceptor,
+    Pointcut,
+    annotated,
+    bean_type,
+    mark,
+    name_matches,
+    within,
+)
 from .context import ApplicationContext
 from .definition import Scope
 from .errors import (
@@ -25,18 +41,27 @@ from .stereotypes import (
 )
 
 __all__ = [
+    "After",
+    "AfterReturning",
+    "AfterThrowing",
     "ApplicationContext",
+    "Around",
+    "Aspect",
     "Bean",
     "BeanCreationError",
     "BeanPostProcessor",
+    "Before",
     "CircularDependency",
     "Component",
     "Configuration",
     "Controller",
+    "Invocation",
     "Lazy",
+    "MethodInterceptor",
     "NoSuchBean",
     "NoUniqueBean",
     "Order",
+    "Pointcut",
     "PostConstruct",
     "PreDestroy",
     "Primary",
@@ -45,4 +70,9 @@ __all__ = [
     "Repository",
     "Scope",
     "Service",
+    "annotated",
+    "bean_type",
+    "mark",
+    "name_matches",
+    "within",
 ]
