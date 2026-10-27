@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import logging
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Any, TypeVar, overload
 
@@ -24,6 +24,7 @@ from .aop import (
 from .conditions import (
     ConditionContext,
     ConditionEvaluationReport,
+    ConditionReportEntry,
     conditions_of,
     evaluate_condition,
     is_bean_presence,
@@ -158,6 +159,10 @@ class ApplicationContext:
             else Environment(sources=[EnvVarSource()])
         )
         self._condition_report = ConditionEvaluationReport()
+        # Entries recorded out-of-band (e.g. failed auto-configuration entry
+        # points from pyleaf-boot): refresh() rebuilds the report, so these
+        # are kept aside and re-attached after each evaluation.
+        self._report_extras: list[ConditionReportEntry] = []
         self._listeners: list[ListenerEntry] = []
         self._listeners_dirty = True
         # Expose the environment itself as an injectable, pre-built bean.
@@ -335,6 +340,20 @@ class ApplicationContext:
         """Per-definition outcomes of the last refresh's condition evaluation."""
         return self._condition_report
 
+    def record_condition(
+        self, name: str, matched: bool, reasons: Iterable[str]
+    ) -> None:
+        """Append an out-of-band entry to the condition report.
+
+        Used for conditions that were evaluated outside ``refresh()`` —
+        e.g. a failed auto-configuration entry point in pyleaf-boot. The
+        entry lands in the current report and is re-attached after every
+        later condition evaluation, so it survives ``refresh()``.
+        """
+        entry = ConditionReportEntry(name, matched, list(reasons))
+        self._report_extras.append(entry)
+        self._condition_report.entries.append(entry)
+
     @property
     def environment(self) -> Environment:
         """The context's property environment."""
@@ -344,6 +363,8 @@ class ApplicationContext:
         """Drop non-matching conditional defs; record every one in the report."""
         report = ConditionEvaluationReport()
         self._condition_report = report
+        # Out-of-band entries (record_condition) persist across rebuilds.
+        report.entries.extend(self._report_extras)
         if not any(defn.conditions for defn in self._registry.all()):
             return
         is_importable = _make_is_importable()

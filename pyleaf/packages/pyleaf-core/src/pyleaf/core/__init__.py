@@ -27,6 +27,7 @@ from .conditions import (
     ConditionalOnProperty,
     ConditionContext,
     ConditionEvaluationReport,
+    ConditionReportEntry,
     ConditionResult,
     Profile,
 )
@@ -72,6 +73,7 @@ __all__ = [
     "Condition",
     "ConditionContext",
     "ConditionEvaluationReport",
+    "ConditionReportEntry",
     "ConditionResult",
     "Conditional",
     "ConditionalOnBean",
