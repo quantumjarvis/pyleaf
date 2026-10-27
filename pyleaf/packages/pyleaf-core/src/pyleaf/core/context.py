@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import logging
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
@@ -20,7 +21,15 @@ from .aop import (
     iter_candidate_methods,
     make_wrapper,
 )
+from .conditions import (
+    ConditionContext,
+    ConditionEvaluationReport,
+    conditions_of,
+    evaluate_condition,
+    is_bean_presence,
+)
 from .definition import DEFAULT_ORDER, BeanDefinition, BeanRegistry, Scope
+from .environment import Environment, EnvVarSource
 from .errors import (
     BeanCreationError,
     CircularDependency,
@@ -77,6 +86,26 @@ class _AdviceBinding:
     pointcut: Pointcut
 
 
+def _make_is_importable() -> Callable[[str], bool]:
+    """Build an ``is_importable`` predicate cached for one refresh pass.
+
+    ``find_spec`` locates a module without executing it — a bean conditioned
+    on a module that would raise on import still registers correctly. Odd
+    names that make ``find_spec`` itself raise count as not importable.
+    """
+    cache: dict[str, bool] = {}
+
+    def is_importable(name: str) -> bool:
+        if name not in cache:
+            try:
+                cache[name] = importlib.util.find_spec(name) is not None
+            except Exception:
+                cache[name] = False
+        return cache[name]
+
+    return is_importable
+
+
 def _iter_bean_methods(cls: type[Any]) -> Iterator[tuple[str, Callable[..., Any]]]:
     """Yield ``(method_name, function)`` for each ``@Bean``-marked method."""
     seen: set[str] = set()
@@ -102,6 +131,7 @@ class ApplicationContext:
         self,
         scan: Sequence[str] | None = None,
         exclude: Sequence[str] = (),
+        environment: Environment | None = None,
     ) -> None:
         self._registry = BeanRegistry()
         self._singletons: dict[str, Any] = {}
@@ -115,6 +145,20 @@ class ApplicationContext:
         self._aop_matches: dict[
             str, dict[str, tuple[Callable[..., Any], list[_AdviceBinding]]]
         ] = {}
+        self._environment = (
+            environment
+            if environment is not None
+            else Environment(sources=[EnvVarSource()])
+        )
+        self._condition_report = ConditionEvaluationReport()
+        # Expose the environment itself as an injectable, pre-built bean.
+        self._registry.register(
+            BeanDefinition(
+                name="environment",
+                bean_type=Environment,
+                factory=lambda: self._environment,
+            )
+        )
 
     def register(self, cls: type[T]) -> type[T]:
         """Register a component-stereotype or ``@Configuration`` class."""
@@ -150,6 +194,7 @@ class ApplicationContext:
             lazy=bool(lazy),
             order=int(getattr(cls, ORDER_ATTR, DEFAULT_ORDER)),
             dep_specs=lambda: constructor_dependencies(cls, self._registry),
+            conditions=conditions_of(cls),
         )
         self._registry.register(defn)
 
@@ -161,6 +206,7 @@ class ApplicationContext:
             bean_type=cls,
             factory=lambda: self._construct(cls),
             dep_specs=lambda: constructor_dependencies(cls, self._registry),
+            conditions=conditions_of(cls),
         )
         self._registry.register(config_defn)
         for method_name, func in _iter_bean_methods(cls):
@@ -193,6 +239,7 @@ class ApplicationContext:
             scope=Scope.SINGLETON,
             lazy=False,
             dep_specs=dep_specs,
+            conditions=conditions_of(func),
         )
         self._registry.register(defn)
 
@@ -224,6 +271,12 @@ class ApplicationContext:
         """
         if self._scan:
             scan_packages(self, self._scan, self._exclude)
+        # Two-phase condition evaluation: phase A drops defs whose class /
+        # property / profile / custom conditions fail; phase B then checks
+        # bean-presence conditions against the post-A registry so user beans
+        # beat conditional ones regardless of registration order and
+        # phase-A-dropped defs do not count as present.
+        self._evaluate_conditions()
         self._instantiate_post_processors()
         # Aspects are beans too: force-instantiate them (with DI and the BPP
         # phase) before compiling the match table so advice can bind to live
@@ -234,6 +287,68 @@ class ApplicationContext:
         for defn in self._registry.all():
             if defn.scope is Scope.SINGLETON and (eager or not defn.lazy):
                 self._get_or_create(defn)
+
+    @property
+    def condition_report(self) -> ConditionEvaluationReport:
+        """Per-definition outcomes of the last refresh's condition evaluation."""
+        return self._condition_report
+
+    def _evaluate_conditions(self) -> None:
+        """Drop non-matching conditional defs; record every one in the report."""
+        report = ConditionEvaluationReport()
+        self._condition_report = report
+        if not any(defn.conditions for defn in self._registry.all()):
+            return
+        is_importable = _make_is_importable()
+        # Phase A: everything except bean-presence conditions.
+        pending: list[tuple[BeanDefinition, list[str]]] = []
+        dropped: list[tuple[BeanDefinition, list[str]]] = []
+        for defn in self._registry.all():
+            if not defn.conditions:
+                continue
+            ctx = ConditionContext(
+                self._environment, self._registry, is_importable, excluding=defn.name
+            )
+            reasons: list[str] = []
+            matched = True
+            for condition in defn.conditions:
+                if is_bean_presence(condition):
+                    continue
+                result = evaluate_condition(condition, ctx)
+                reasons.append(result.reason)
+                matched = matched and result.matched
+            if matched:
+                pending.append((defn, reasons))
+            else:
+                dropped.append((defn, reasons))
+                self._registry.remove(defn.name)
+        # Phase B: bean-presence conditions against the post-A registry.
+        for defn, reasons in pending:
+            ctx = ConditionContext(
+                self._environment, self._registry, is_importable, excluding=defn.name
+            )
+            matched = True
+            for condition in defn.conditions:
+                if not is_bean_presence(condition):
+                    continue
+                result = evaluate_condition(condition, ctx)
+                reasons.append(result.reason)
+                matched = matched and result.matched
+            report.record(defn.name, matched, reasons)
+            if not matched:
+                self._registry.remove(defn.name)
+        # Phase-A drops still record their bean-presence reasons (report-only).
+        for defn, reasons in dropped:
+            ctx = ConditionContext(
+                self._environment, self._registry, is_importable, excluding=defn.name
+            )
+            for condition in defn.conditions:
+                if not is_bean_presence(condition):
+                    continue
+                reasons.append(evaluate_condition(condition, ctx).reason)
+            report.record(defn.name, False, reasons)
+        # Dropped defs may be memoized in the resolved-definition cache.
+        self._resolved.clear()
 
     def _instantiate_aspects(self) -> None:
         """Force-create all singleton aspect beans, ordered by (@Order, name)."""

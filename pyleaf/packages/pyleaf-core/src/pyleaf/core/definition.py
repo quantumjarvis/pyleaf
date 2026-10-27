@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
 
@@ -39,6 +39,8 @@ class BeanDefinition:
     lazy: bool = True
     order: int = DEFAULT_ORDER
     dep_specs: Callable[[], list[DepSpec]] = _no_dep_specs
+    # Conditions marked by @ConditionalOn* decorators (class or @Bean method).
+    conditions: list[Any] = field(default_factory=list)
 
 
 class BeanRegistry:
@@ -60,6 +62,16 @@ class BeanRegistry:
     def has(self, name: str) -> bool:
         """Return True when a bean with ``name`` is registered."""
         return name in self._defs
+
+    def remove(self, name: str) -> BeanDefinition:
+        """Drop the definition for ``name``; raise NoSuchBean when absent."""
+        try:
+            defn = self._defs.pop(name)
+        except KeyError:
+            raise NoSuchBean(f"No bean named '{name}'") from None
+        # The removed definition may be in memoized candidate lists.
+        self._candidates.clear()
+        return defn
 
     def get(self, name: str) -> BeanDefinition:
         """Return the definition for ``name`` or raise NoSuchBean."""
