@@ -86,13 +86,46 @@ def _listening(port: int) -> bool:
         return False
 
 
-def _wait_listening(port: int, timeout: float = 15.0) -> None:
+def _error_summaries(errors: list[BaseException] | None) -> list[str]:
+    return [f"{e.__class__.__name__}: {e}" for e in (errors or [])]
+
+
+def _wait_listening(
+    port: int,
+    thread: threading.Thread | None = None,
+    errors: list[BaseException] | None = None,
+    timeout: float = 60.0,
+) -> None:
+    """Poll until ``port`` accepts a connection, or the serving thread dies.
+
+    ``thread``/``errors`` describe the ``run()`` worker: once it has exited
+    the port can never bind, so fail fast with the captured exception
+    instead of burning the whole budget. A timeout also reports the thread
+    state and any captured error so a CI flake exposes the root cause
+    rather than a bare "nothing is listening".
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if _listening(port):
             return
+        if thread is not None and not thread.is_alive():
+            msg = (
+                f"serving thread exited before 127.0.0.1:{port} was listening "
+                f"(alive={thread.is_alive()}, errors={_error_summaries(errors)})"
+            )
+            if errors:
+                raise AssertionError(msg) from errors[0]
+            raise AssertionError(msg)
         time.sleep(0.05)
-    raise AssertionError(f"nothing is listening on 127.0.0.1:{port}")
+    detail = (
+        f" (serving thread alive={thread.is_alive()}, "
+        f"errors={_error_summaries(errors)})"
+        if thread is not None
+        else ""
+    )
+    raise AssertionError(
+        f"nothing is listening on 127.0.0.1:{port} after {timeout:.0f}s{detail}"
+    )
 
 
 def _install_spy(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
@@ -135,7 +168,7 @@ def test_run_serves_and_shuts_down_cleanly(
 
     server = None
     try:
-        _wait_listening(port)
+        _wait_listening(port, thread, errors)
 
         resp = httpx.get(f"http://127.0.0.1:{port}/health", timeout=5)
         assert resp.status_code == 200
