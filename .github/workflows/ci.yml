@@ -67,9 +67,9 @@ jobs:
       - run: uv run pytest -q
 
   benchmarks:
-    name: benchmarks (m1 + baseline compare)
+    name: benchmarks (m1 + m2 + baseline compare)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
@@ -82,18 +82,23 @@ jobs:
       # Baselines are per-runner (benchmarks/baselines/<runner>.json): the
       # committed local.json was captured on a dev Mac and cannot be compared
       # against shared CI hardware. Each run therefore (a) executes the
-      # benchmarks — every test asserts its absolute M1 threshold — and saves
+      # benchmarks — every test asserts its absolute threshold — and saves
       # results as an artifact, and (b) compares medians against
       # benchmarks/baselines/github.json when that file exists (seeded once
-      # from a CI artifact; rebaseline deliberately, never silently).
-      - name: pytest benchmarks/m1 (+ compare vs github.json when seeded)
+      # from a CI artifact; rebaseline deliberately, never silently). The m2
+      # rows enter github.json from the next CI artifact, same flow as m1.
+      - name: pytest benchmarks m1 + m2 (+ compare vs github.json when seeded)
         run: |
           COMPARE=""
           if [ -f benchmarks/baselines/github.json ]; then
             COMPARE="--benchmark-compare=benchmarks/baselines/github.json --benchmark-compare-fail=median:15%"
           fi
           # shellcheck disable=SC2086 # word-splitting intended for COMPARE flags
-          uv run pytest benchmarks/m1 -q --benchmark-save=ci $COMPARE
+          uv run pytest benchmarks/m1 benchmarks/m2 -q --benchmark-save=ci $COMPARE
+      # M2 memory gate: contextvar request scopes must not leak instances or
+      # teardown callbacks across 100k sequential requests (< 20MB RSS growth).
+      - name: request-scope memory soak (m2)
+        run: uv run python benchmarks/m2/soak_request_scope.py
       - name: upload benchmark results (baseline seed)
         if: always()
         uses: actions/upload-artifact@v5

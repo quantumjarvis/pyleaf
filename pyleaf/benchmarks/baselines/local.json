@@ -29,9 +29,9 @@
         }
     },
     "commit_info": {
-        "id": "455ce856f57e285a3490eca79f6a4d77b32ba24e",
-        "time": "2026-10-27T18:54:16-05:00",
-        "author_time": "2026-10-27T18:54:16-05:00",
+        "id": "24e64965f5cfac295f4a275f7805b064afefb449",
+        "time": "2026-10-28T15:24:21-05:00",
+        "author_time": "2026-10-28T15:24:21-05:00",
         "dirty": true,
         "project": "pyleaf",
         "branch": "main"
@@ -406,8 +406,202 @@
                 "total": 1.5119058819982456,
                 "iterations": 1
             }
+        },
+        {
+            "group": null,
+            "name": "test_actuator_beans_200_defs",
+            "fullname": "benchmarks/m2/test_bench_actuator_beans.py::test_actuator_beans_200_defs",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0026623749872669578,
+                "max": 0.013553666998632252,
+                "mean": 0.0030936030961111914,
+                "stddev": 0.0006849594560968395,
+                "rounds": 314,
+                "median": 0.00296622900350485,
+                "iqr": 0.00018916699627880007,
+                "q1": 0.002917541001806967,
+                "q3": 0.003106707998085767,
+                "iqr_outliers": 26,
+                "stddev_outliers": 14,
+                "outliers": "14;26",
+                "ld15iqr": 0.0026623749872669578,
+                "hd15iqr": 0.003395666994038038,
+                "ops": 323.24767235236106,
+                "total": 0.971391372178914,
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "test_advice_dispatch_vs_fastapi_handler",
+            "fullname": "benchmarks/m2/test_bench_advice_dispatch.py::test_advice_dispatch_vs_fastapi_handler",
+            "params": null,
+            "param": null,
+            "extra_info": {
+                "raw_median_s": 0.0009759791665904534,
+                "overhead_ratio": 1.0191897841601187
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0008224170014727861,
+                "max": 0.010400624989415519,
+                "mean": 0.0010177742790813812,
+                "stddev": 0.00031148941798475247,
+                "rounds": 989,
+                "median": 0.0009947079961420968,
+                "iqr": 9.563425192027353e-05,
+                "q1": 0.0009463130045332946,
+                "q3": 0.0010419472564535681,
+                "iqr_outliers": 46,
+                "stddev_outliers": 13,
+                "outliers": "13;46",
+                "ld15iqr": 0.0008224170014727861,
+                "hd15iqr": 0.0011871250026160851,
+                "ops": 982.5361286419775,
+                "total": 1.006578762011486,
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "test_controller_overhead_vs_raw_fastapi",
+            "fullname": "benchmarks/m2/test_bench_controller_overhead.py::test_controller_overhead_vs_raw_fastapi",
+            "params": null,
+            "param": null,
+            "extra_info": {
+                "raw_median_s": 0.0010506236329092644,
+                "overhead_ratio": 1.0068229606100885
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0009210830030497164,
+                "max": 0.010650083000655286,
+                "mean": 0.0012224859229245492,
+                "stddev": 0.0005856864854068813,
+                "rounds": 958,
+                "median": 0.0010577919965726323,
+                "iqr": 0.00011929200263693929,
+                "q1": 0.0010172909969696775,
+                "q3": 0.0011365829996066168,
+                "iqr_outliers": 142,
+                "stddev_outliers": 66,
+                "outliers": "66;142",
+                "ld15iqr": 0.0009210830030497164,
+                "hd15iqr": 0.0013250409974716604,
+                "ops": 818.005329343755,
+                "total": 1.171141514161718,
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "test_webmiddleware_hop_added_latency",
+            "fullname": "benchmarks/m2/test_bench_middleware_hop.py::test_webmiddleware_hop_added_latency",
+            "params": null,
+            "param": null,
+            "extra_info": {
+                "raw_median_s": 0.0006931135500053643,
+                "added_per_hop_s": 4.0937090185856764e-07
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0269870830088621,
+                "max": 0.03969370799313765,
+                "mean": 0.028701085638507113,
+                "stddev": 0.0027726135251111648,
+                "rounds": 36,
+                "median": 0.0277736665084376,
+                "iqr": 0.000426208513090387,
+                "q1": 0.027590791491093114,
+                "q3": 0.0280170000041835,
+                "iqr_outliers": 6,
+                "stddev_outliers": 3,
+                "outliers": "3;6",
+                "ld15iqr": 0.0269870830088621,
+                "hd15iqr": 0.02953595799044706,
+                "ops": 34.84188760645136,
+                "total": 1.033239082986256,
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "test_request_scope_cycle",
+            "fullname": "benchmarks/m2/test_bench_request_scope.py::test_request_scope_cycle",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 9.70800465438515e-06,
+                "max": 0.00016862500342540443,
+                "mean": 1.1125368042747464e-05,
+                "stddev": 3.0812860777551335e-06,
+                "rounds": 57554,
+                "median": 1.0750009096227586e-05,
+                "iqr": 4.5899651013314724e-07,
+                "q1": 1.0583011317066848e-05,
+                "q3": 1.1042007827199996e-05,
+                "iqr_outliers": 7806,
+                "stddev_outliers": 1150,
+                "outliers": "1150;7806",
+                "ld15iqr": 9.915995178744197e-06,
+                "hd15iqr": 1.17499876068905e-05,
+                "ops": 89884.66684047291,
+                "total": 0.6403094323322875,
+                "iterations": 1
+            }
         }
     ],
-    "datetime": "2026-10-28T00:06:23.526157+00:00",
+    "datetime": "2026-10-28T20:33:39.998750+00:00",
     "version": "5.3.0"
 }
