@@ -10,7 +10,7 @@ through package entry points, and a shared method-interceptor chain that
 transactions, caching, security, and retry will all compose on.
 
 !!! note "Status"
-    **M2 (web) complete — v0.2.0 in progress.** M1 shipped the container,
+    **v0.2.0 released — M2 (web) shipped.** M1 shipped the container,
     AOP, events, and boot layers; M2 adds `@RestController` apps over
     FastAPI, the REQUEST bean scope, `@ControllerAdvice`/`@WebMiddleware`,
     uvicorn serving from `run()`, actuator endpoints, and the

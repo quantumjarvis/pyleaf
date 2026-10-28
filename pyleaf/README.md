@@ -5,7 +5,7 @@ Python — a typed DI container with conditions and a condition report,
 container-applied AOP, and Boot-style auto-configuration delivered as
 installable starters.
 
-> **Status: M2 (web) complete — v0.2.0 in progress.**
+> **Status: v0.2.0 released — M2 (web) shipped.**
 >
 > Shipped in M1: DI container (`pyleaf-core`), conditions +
 > `ConditionEvaluationReport`, container-applied AOP, application events,

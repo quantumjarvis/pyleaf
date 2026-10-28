@@ -4,14 +4,13 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — v0.2.0 draft
+## [0.2.0] - 2026-10-28
 
 Milestone 2 — web. `pyleaf-web` (Spring-style class controllers over
 FastAPI, REQUEST scope, controller advice, bean middleware,
 `WebAutoConfiguration` + uvicorn serving), `pyleaf-actuator`
 (operational endpoints with masking), the `pyleaf_client` test fixture,
-and the `examples/todo-api` CRUD app. The `v0.2.0` tag is cut after the
-M2 quality tasks land; until then this section is a draft.
+and the `examples/todo-api` CRUD app.
 
 ### Added
 
@@ -146,4 +145,5 @@ properties, application runner), the `pyleaf-test` pytest plugin, and the
   GitHub Actions CI; README with the full Spring→Python→pyleaf chart;
   mkdocs-material docs skeleton; this changelog.
 
+[0.2.0]: https://github.com/quantumjarvis/pyleaf/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/quantumjarvis/pyleaf/releases/tag/v0.1.0
