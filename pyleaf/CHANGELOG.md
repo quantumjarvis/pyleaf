@@ -71,4 +71,4 @@ properties, application runner), the `pyleaf-test` pytest plugin, and the
   GitHub Actions CI; README with the full Spring→Python→pyleaf chart;
   mkdocs-material docs skeleton; this changelog.
 
-[0.1.0]: https://github.com/OWNER/REPO/releases/tag/v0.1.0
+[0.1.0]: https://github.com/quantumjarvis/pyleaf/releases/tag/v0.1.0

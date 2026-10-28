@@ -14,12 +14,8 @@ installable starters.
 > plugin. Web, transactions/data, security, caching/clustering, and
 > scheduling are planned milestones (see the chart below).
 
-<!-- Badges: fill in OWNER/REPO once the git remote exists (the repo has no
-     remote yet, so these are placeholders). CI workflow: .github/workflows/ci.yml
-
-[![ci](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![ci](https://github.com/quantumjarvis/pyleaf/actions/workflows/ci.yml/badge.svg)](https://github.com/quantumjarvis/pyleaf/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/pyleaf-core.svg)](https://pypi.org/project/pyleaf-core/)
--->
 
 ## Spring → Python → pyleaf: the feature chart
 
