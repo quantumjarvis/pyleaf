@@ -1631,11 +1631,18 @@ dependencies = [
     { name = "pytest" },
 ]
 
+[package.optional-dependencies]
+web = [
+    { name = "pyleaf-web" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "pyleaf-boot", editable = "packages/pyleaf-boot" },
+    { name = "pyleaf-web", marker = "extra == 'web'", editable = "packages/pyleaf-web" },
     { name = "pytest", specifier = ">=8" },
 ]
+provides-extras = ["web"]
 
 [[package]]
 name = "pyleaf-web"

@@ -27,6 +27,15 @@ A ``pyleaf_beans`` *class attribute* holding a list of descriptors is
 merged in as well. Overrides apply inside ``ctx.refresh()`` after
 component scanning but before conditions and instantiation; attempting one
 on an already-refreshed context raises ``PyleafError`` naming the bean.
+
+The ``pyleaf_client`` fixture (function scope, depends on
+``pyleaf_context``) serves the refreshed context over HTTP: it builds a
+per-test FastAPI app with the same wiring ``fastapiApp`` produces —
+controllers, advice, bean middleware, ``RequestScopeMiddleware`` — wraps
+it in a ``TestClient`` and closes only the client on teardown; the
+context remains ``pyleaf_context``'s to close. The web stack
+(``fastapi`` / ``pyleaf.web``) is imported lazily; when it is absent the
+test skips instead of failing at import.
 """
 
 from __future__ import annotations
@@ -51,6 +60,7 @@ from pyleaf.core.definition import Scope
 
 if TYPE_CHECKING:
     from pyleaf.core.resolver import DepSpec
+    from starlette.testclient import TestClient
 
 _META_ATTR = "__pyleaf_test__"
 
@@ -257,3 +267,59 @@ def pyleaf_context(
         yield ctx
     finally:
         ctx.close()
+
+
+@pytest.fixture
+def pyleaf_client(
+    pyleaf_context: ApplicationContext,
+) -> Iterator[TestClient]:
+    """Serve ``pyleaf_context`` over a per-test ``TestClient``.
+
+    Builds a fresh ``FastAPI`` app with the same wiring
+    ``WebAutoConfiguration.fastapiApp`` produces — ``@RestController``
+    routes, the ``@ControllerAdvice`` dispatcher, ``@WebMiddleware``
+    beans, ``RequestScopeMiddleware``, CORS from ``pyleaf.web.cors.*``
+    properties, ``/health`` and ``FastApiCustomizer`` beans — minus the
+    lifespan: the context stays ``pyleaf_context``'s to close, so the
+    fixture only closes the client. Building the app lazily at fixture
+    time is what makes ``mock_bean``/``spy_bean`` overrides visible in
+    served responses: controllers were already constructed against the
+    overridden beans when the routes resolve them.
+
+    ``fastapi`` / ``pyleaf.web`` are imported lazily so pyleaf-test does
+    not hard-depend on the web stack; when it is absent the using test
+    is skipped.
+    """
+    try:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from pyleaf.web import (
+            FastApiCustomizer,
+            RequestScopeMiddleware,
+            register_advice,
+            register_controllers,
+            register_middleware,
+        )
+        from pyleaf.web.autoconfigure import _add_cors
+    except ImportError as exc:
+        pytest.skip(
+            "pyleaf_client requires the web stack — install pyleaf-web "
+            f"(extra 'pyleaf-test[web]'); missing module: {exc.name!r}"
+        )
+
+    app = FastAPI()
+    register_controllers(app, pyleaf_context)
+    register_advice(app, pyleaf_context)
+    register_middleware(app, pyleaf_context)
+    app.add_middleware(RequestScopeMiddleware, context=pyleaf_context)
+    _add_cors(app, pyleaf_context.environment)
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "UP"}
+
+    for customizer in pyleaf_context.get_all(FastApiCustomizer):
+        customizer.customize(app)
+
+    with TestClient(app) as client:
+        yield client
