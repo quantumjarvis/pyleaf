@@ -12,3 +12,25 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pyleaf"]
+
+# mutmut 3.x resolves source_paths relative to CWD and inserts mutants/src
+# into sys.path, so it must run from this package directory:
+#   cd packages/pyleaf-core && uv run mutmut run
+# only_mutate scopes mutant generation to conditions.py (PYL-19); the rest of
+# src/ is copied unmutated so `import pyleaf.core` keeps working.
+#
+# Baseline: 255/258 mutants killed. The 3 survivors are equivalent mutants
+# (no observable behavior change, documented rather than killed):
+#   - x_Conditional__mutmut_2: cast(None, c)() — typing.cast is a runtime
+#     identity, so the mutant calls c() exactly like the original.
+#   - x__add_condition__mutmut_21: getattr(target, "__dict__") without a
+#     default raises AttributeError only when the target has no __dict__;
+#     the only reachable such path (slotted instance with an inherited
+#     marker list) then fails at setattr with AttributeError anyway.
+#   - x_is_bean_presence__mutmut_4: getattr(..., "bean_presence", None) —
+#     the default only applies when the attr is missing, and both None and
+#     False are falsy.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/pyleaf/core/conditions.py"]
+pytest_add_cli_args_test_selection = ["tests"]

@@ -5,3 +5,5 @@ dist/
 *.egg-info/
 .qwen/
 .benchmarks/
+mutants/
+.coverage

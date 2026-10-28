@@ -95,7 +95,9 @@ def _resolve_hints(
             ann = param.annotation
             if isinstance(ann, str):
                 try:
-                    eval(ann, merged)  # noqa: S307
+                    # Annotation strings come from modules the app itself
+                    # loads; trust level is that of executing module code.
+                    eval(ann, merged)  # noqa: S307  # nosec B307
                 except Exception as inner:
                     raise BeanCreationError(
                         f"Cannot resolve type hint for parameter '{pname}'"
@@ -153,7 +155,9 @@ def _params_dependencies(
         if isinstance(ann, str):
             merged = {**_globalns(func), **_registry_localns(registry)}
             try:
-                ann = eval(ann, merged)  # noqa: S307
+                # Annotation strings come from modules the app itself loads;
+                # trust level is that of executing module code.
+                ann = eval(ann, merged)  # noqa: S307  # nosec B307
             except Exception as exc:
                 raise BeanCreationError(
                     f"Cannot resolve type hint for parameter '{pname}'"
