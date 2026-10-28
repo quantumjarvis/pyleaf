@@ -21,6 +21,7 @@ class Scope(Enum):
 
     SINGLETON = auto()
     PROTOTYPE = auto()
+    REQUEST = auto()
 
 
 def _no_dep_specs() -> list[DepSpec]:

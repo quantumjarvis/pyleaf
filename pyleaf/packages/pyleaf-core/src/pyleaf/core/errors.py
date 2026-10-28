@@ -19,3 +19,7 @@ class CircularDependency(PyleafError):
 
 class BeanCreationError(PyleafError):
     """Raised when a bean cannot be instantiated; the original error is chained."""
+
+
+class ScopeNotActive(PyleafError):
+    """Raised when a request-scoped bean is touched outside an active scope."""

@@ -56,6 +56,7 @@ from .resolver import (
     peel_annotated,
 )
 from .scan import scan_packages
+from .scope import RequestScopedProxy
 from .stereotypes import (
     BEAN_ATTR,
     COMPONENT_ATTR,
@@ -143,6 +144,7 @@ class ApplicationContext:
     ) -> None:
         self._registry = BeanRegistry()
         self._singletons: dict[str, Any] = {}
+        self._request_proxies: dict[str, RequestScopedProxy[Any]] = {}
         self._creating: list[str] = []
         self._resolved: dict[Any, BeanDefinition] = {}
         self._scan = list(scan) if scan is not None else []
@@ -285,7 +287,7 @@ class ApplicationContext:
             factory=lambda: self._invoke_bean_factory(
                 config_name, method_name, func, owner
             ),
-            scope=Scope.SINGLETON,
+            scope=bean_meta.scope,
             lazy=False,
             dep_specs=dep_specs,
             conditions=conditions_of(func),
@@ -854,6 +856,7 @@ class ApplicationContext:
                     )
         self._created.clear()
         self._singletons.clear()
+        self._request_proxies.clear()
 
     def _resolve_single(
         self,
@@ -917,9 +920,41 @@ class ApplicationContext:
             raise
         return self._get_or_create(defn)
 
+    def _request_proxy(self, defn: BeanDefinition) -> RequestScopedProxy[Any]:
+        """Return the (cached) proxy injected for a request-scoped bean.
+
+        One proxy per definition per context — like Spring, request beans
+        are always proxied so a singleton holding the proxy transparently
+        sees the active scope's instance on every access.
+        """
+        proxy = self._request_proxies.get(defn.name)
+        if proxy is None:
+            proxy = RequestScopedProxy(self, defn)
+            self._request_proxies[defn.name] = proxy
+        return proxy
+
     def _get_or_create(self, defn: BeanDefinition) -> Any:
+        if defn.scope is Scope.REQUEST:
+            # Never resolved eagerly — injection and ctx.get both return a
+            # proxy; the real instance lives in the active RequestScope.
+            return self._request_proxy(defn)
         if defn.scope is Scope.SINGLETON and defn.name in self._singletons:
             return self._singletons[defn.name]
+        instance = self._instantiate(defn)
+        if defn.scope is Scope.SINGLETON:
+            self._singletons[defn.name] = instance
+            # Record the actual creation moment (lazy singletons create out
+            # of registration order) so close() can destroy in reverse.
+            self._created.append(instance)
+        return instance
+
+    def _instantiate(self, defn: BeanDefinition) -> Any:
+        """Run factory + creation pipeline for one instance; never caches.
+
+        Used for singletons, prototypes and request-scoped beans alike —
+        the caller owns caching and lifecycle (``_singletons`` /
+        ``RequestScope``).
+        """
         if defn.name in self._creating:
             names = [
                 _type_name(self._registry.get(n).bean_type)
@@ -930,7 +965,7 @@ class ApplicationContext:
             )
         self._creating.append(defn.name)
         try:
-            instance = self._apply_creation_pipeline(defn.factory(), defn)
+            return self._apply_creation_pipeline(defn.factory(), defn)
         except PyleafError:
             raise
         except Exception as exc:
@@ -941,12 +976,6 @@ class ApplicationContext:
             ) from exc
         finally:
             self._creating.remove(defn.name)
-        if defn.scope is Scope.SINGLETON:
-            self._singletons[defn.name] = instance
-            # Record the actual creation moment (lazy singletons create out
-            # of registration order) so close() can destroy in reverse.
-            self._created.append(instance)
-        return instance
 
     def _apply_creation_pipeline(self, bean: Any, defn: BeanDefinition) -> Any:
         """Run the post-construction chain:

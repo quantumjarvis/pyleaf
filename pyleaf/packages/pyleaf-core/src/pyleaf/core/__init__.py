@@ -40,10 +40,12 @@ from .errors import (
     NoSuchBean,
     NoUniqueBean,
     PyleafError,
+    ScopeNotActive,
 )
 from .events import EventListener, EventPublisher
 from .lifecycle import PostConstruct, PreDestroy
 from .postprocess import BeanPostProcessor
+from .scope import RequestScope, RequestScopedProxy
 from .stereotypes import (
     Bean,
     Component,
@@ -104,7 +106,10 @@ __all__ = [
     "PyleafError",
     "Qualifier",
     "Repository",
+    "RequestScope",
+    "RequestScopedProxy",
     "Scope",
+    "ScopeNotActive",
     "Service",
     "annotated",
     "bean_type",

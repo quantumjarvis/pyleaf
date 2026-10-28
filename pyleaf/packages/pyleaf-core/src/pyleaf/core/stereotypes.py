@@ -46,6 +46,7 @@ class BeanMeta:
     """Metadata carried by a @Bean method."""
 
     name: str | None
+    scope: Scope = Scope.SINGLETON
 
 
 def _resolve_target(
@@ -221,6 +222,7 @@ def Bean(
     /,
     *,
     name: str | None = None,
+    scope: Scope = Scope.SINGLETON,
 ) -> Callable[[F], F]: ...
 
 
@@ -229,12 +231,13 @@ def Bean(
     /,
     *,
     name: str | None = None,
+    scope: Scope = Scope.SINGLETON,
 ) -> F | Callable[[F], F]:
     """Mark a ``@Configuration`` method as a bean factory (bare or with ``name=``)."""
     effective = name if name is not None else (target if isinstance(target, str) else None)
 
     def wrap(func: F) -> F:
-        setattr(func, BEAN_ATTR, BeanMeta(effective))
+        setattr(func, BEAN_ATTR, BeanMeta(effective, scope))
         return func
 
     if target is None or isinstance(target, str):
