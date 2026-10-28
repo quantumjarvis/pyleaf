@@ -79,17 +79,29 @@ jobs:
           cache-python: true
           python-version: "3.12"
       - run: uv sync --locked
-      # Single run both executes the benchmarks (each asserts its own M1
-      # threshold) and compares against the committed baseline.
-      # pytest-benchmark accepts --benchmark-compare-fail=<stat>:<tolerance>,
-      # so we gate on median:15% (fail if the new median regresses >15% vs
-      # the baseline's median). NOTE: runner-timing jitter can make
-      # microbenchmark comparisons noisy; tighten if this flakes.
-      - name: pytest benchmarks/m1 vs benchmarks/baselines/local.json
-        run: >-
-          uv run pytest benchmarks/m1 -q
-          --benchmark-compare=benchmarks/baselines/local.json
-          --benchmark-compare-fail=median:15%
+      # Baselines are per-runner (benchmarks/baselines/<runner>.json): the
+      # committed local.json was captured on a dev Mac and cannot be compared
+      # against shared CI hardware. Each run therefore (a) executes the
+      # benchmarks — every test asserts its absolute M1 threshold — and saves
+      # results as an artifact, and (b) compares medians against
+      # benchmarks/baselines/github.json when that file exists (seeded once
+      # from a CI artifact; rebaseline deliberately, never silently).
+      - name: pytest benchmarks/m1 (+ compare vs github.json when seeded)
+        run: |
+          COMPARE=""
+          if [ -f benchmarks/baselines/github.json ]; then
+            COMPARE="--benchmark-compare=benchmarks/baselines/github.json --benchmark-compare-fail=median:15%"
+          fi
+          # shellcheck disable=SC2086 # word-splitting intended for COMPARE flags
+          uv run pytest benchmarks/m1 -q --benchmark-save=ci $COMPARE
+      - name: upload benchmark results (baseline seed)
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: bench-results-${{ github.sha }}
+          path: pyleaf/.benchmarks/
+          if-no-files-found: ignore
+          retention-days: 14
 
   e2e:
     name: e2e (m1 contract)
