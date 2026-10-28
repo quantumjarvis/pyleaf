@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Quality gate for pyleaf M1 (task 1.Q2, PYL-19).
+# Quality gate for pyleaf M1+M2 (tasks 1.Q2/PYL-19, PYL-30).
 #
 # Runs, in order, failing the build on the first nonzero exit:
 #   1. pip-audit        dependency vulnerability scan
 #   2. bandit           static security scan over packages/*/src
+#                       (covers M1 and M2 packages alike)
 #   3. ruff check       lint incl. the flake8-bandit S rules
-#   4. coverage gates   resolver/aop/conditions/autoconfigure >= 90% each,
+#   4. coverage gates   M1: resolver/aop/conditions/autoconfigure >= 90%
+#                       M2: every pyleaf.web and pyleaf.actuator module >= 90%
 #                       TOTAL >= 80%
 #   5. mutmut           mutation testing of pyleaf.core.conditions
 #                       (opt-in via --mutmut; runtime is minutes, so the
@@ -32,6 +34,7 @@ echo "== 4/5 coverage gates =="
 # silently under-report module coverage.
 uv run pytest -p no:pyleaf packages/*/tests -q \
     --cov=pyleaf.core --cov=pyleaf.boot --cov=pyleaf.starter \
+    --cov=pyleaf.web --cov=pyleaf.actuator \
     --cov-report=term-missing
 
 # coverage.py has no global per-file fail-under; gate each file separately.
@@ -43,10 +46,22 @@ gate_file() {
     fi
 }
 
+# M1 gated files.
 gate_file "*/pyleaf/core/resolver.py" "pyleaf.core.resolver"
 gate_file "*/pyleaf/core/aop.py" "pyleaf.core.aop"
 gate_file "*/pyleaf/core/conditions.py" "pyleaf.core.conditions"
 gate_file "*/pyleaf/boot/autoconfigure.py" "pyleaf.boot.autoconfigure"
+
+# M2 gated files (PYL-30): every web/actuator module must hold >= 90%.
+gate_file "*/pyleaf/web/advice.py" "pyleaf.web.advice"
+gate_file "*/pyleaf/web/autoconfigure.py" "pyleaf.web.autoconfigure"
+gate_file "*/pyleaf/web/customizer.py" "pyleaf.web.customizer"
+gate_file "*/pyleaf/web/middleware.py" "pyleaf.web.middleware"
+gate_file "*/pyleaf/web/router.py" "pyleaf.web.router"
+gate_file "*/pyleaf/web/stereotypes.py" "pyleaf.web.stereotypes"
+gate_file "*/pyleaf/actuator/autoconfigure.py" "pyleaf.actuator.autoconfigure"
+gate_file "*/pyleaf/actuator/endpoints.py" "pyleaf.actuator.endpoints"
+gate_file "*/pyleaf/actuator/health.py" "pyleaf.actuator.health"
 
 if ! uv run coverage report --fail-under=80; then
     echo "COVERAGE GATE FAILED: TOTAL is below 80%" >&2

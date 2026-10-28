@@ -58,10 +58,11 @@ mypy_path = [
 ]
 
 [tool.coverage.report]
-# Gate policy (PYL-19): resolver.py, aop.py, conditions.py and
-# autoconfigure.py must each stay >= 90% and TOTAL >= 80%. coverage has no
-# global per-file fail-under, so scripts/quality_m1.sh enforces the per-file
-# gates via `coverage report --include=... --fail-under=90`.
+# Gate policy (PYL-19, PYL-30): the M1 gated files (resolver.py, aop.py,
+# conditions.py, boot/autoconfigure.py) and every pyleaf.web /
+# pyleaf.actuator module must each stay >= 90% and TOTAL >= 80%. coverage
+# has no global per-file fail-under, so scripts/quality_m1.sh enforces the
+# per-file gates via `coverage report --include=... --fail-under=90`.
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
