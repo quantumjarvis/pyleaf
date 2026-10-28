@@ -100,6 +100,7 @@ jobs:
         with:
           name: bench-results-${{ github.sha }}
           path: pyleaf/.benchmarks/
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 14
 
