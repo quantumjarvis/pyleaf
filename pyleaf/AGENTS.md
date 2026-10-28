@@ -15,8 +15,8 @@ find packages -path '*/src/pyleaf/__init__.py'   # must print NOTHING
 ## Extended checks (M1 complete)
 
 ```bash
-uv run pytest -q                                  # full suite: 263 tests
-uv run mypy --strict packages/*/src               # all four packages
+uv run pytest -q                                  # full suite, all packages
+uv run mypy --strict packages/*/src               # all five packages
 uv run pytest benchmarks/m1 -q                    # perf suite; excluded from
                                                   # default testpaths, each
                                                   # bench asserts a threshold
