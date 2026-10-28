@@ -59,6 +59,11 @@ def webapp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.syspath_prepend(str(tmp_path))
     sys.modules.pop("webapp", None)
     importlib.invalidate_caches()
+    # Import eagerly on the main thread: the serving test calls run() in a
+    # worker thread, and a first import there can race with concurrent
+    # sys.modules mutation (KeyError inside _find_and_load). With the
+    # module already cached, the thread's import_module is a dict hit.
+    importlib.import_module("webapp")
     yield tmp_path
     sys.modules.pop("webapp", None)
 

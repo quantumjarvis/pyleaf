@@ -133,6 +133,11 @@ def test_run_off_main_thread_still_returns_ctx(tmp_path: Path) -> None:
     sys.path.insert(0, str(tmp_path))
     try:
         importlib.invalidate_caches()
+        # Eager main-thread import: run() scans "offapp" in the worker
+        # thread, and a first import off the main thread can race with
+        # concurrent sys.modules mutation (KeyError inside _find_and_load).
+        sys.modules.pop("offapp", None)
+        importlib.import_module("offapp")
         results: list[object] = []
         errors: list[Exception] = []
 
