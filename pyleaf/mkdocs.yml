@@ -30,6 +30,8 @@ nav:
       - pyleaf-boot: packages/boot.md
       - pyleaf-starter-sqlalchemy: packages/starter-sqlalchemy.md
       - pyleaf-test: packages/test.md
+      - pyleaf-web: web.md
+      - pyleaf-actuator: actuator.md
 
 markdown_extensions:
   - admonition

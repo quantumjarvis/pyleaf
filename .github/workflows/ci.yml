@@ -105,7 +105,7 @@ jobs:
           retention-days: 14
 
   e2e:
-    name: e2e (m1 contract)
+    name: e2e (m1 + m2 contracts)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -117,10 +117,13 @@ jobs:
           cache-python: true
           python-version: "3.12"
       - run: uv sync --locked
-      # e2e_m1.sh creates a fresh .e2e-venv via `uv venv` and `uv pip install
-      # -e packages/...`; that install hits PyPI for runtime deps
-      # (sqlalchemy, PyYAML), so this job requires network access.
+      # Each e2e_*.sh creates a fresh .e2e-venv via `uv venv` and `uv pip
+      # install -e packages/...`; that install hits PyPI for runtime deps
+      # (sqlalchemy, PyYAML, fastapi, uvicorn), so this job requires network
+      # access. e2e_m2.sh additionally binds a free 127.0.0.1 port and boots
+      # the todo-api example under real uvicorn.
       - run: bash scripts/e2e_m1.sh
+      - run: bash scripts/e2e_m2.sh
 
   quality-m1:
     name: quality gates (m1)

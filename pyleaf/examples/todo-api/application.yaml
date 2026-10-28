@@ -1,0 +1,25 @@
+app:
+  name: "todo-api"
+  datasource:
+    # File-backed sqlite: sessionmaker sessions are opened per repository
+    # call and FastAPI may run sync handlers on different worker threads, so
+    # an in-memory database (one connection per thread) would lose data.
+    url: "sqlite:///./todo-api.db"
+    pool_size: 5
+    echo: false
+  # Demonstrates /actuator/env masking: the key name matches the secret
+  # pattern (password|secret|token|key) so the value renders as ******.
+  api-secret-key: "dev-only-secret-value"
+info:
+  app:
+    name: "todo-api"
+    version: "0.2.0"
+pyleaf:
+  logging:
+    level: INFO
+  web:
+    host: "127.0.0.1"
+    port: 8080
+    access-log: false
+  actuator:
+    base-path: "/actuator"

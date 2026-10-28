@@ -8,3 +8,4 @@ dist/
 mutants/
 .coverage
 site/
+todo-api.db

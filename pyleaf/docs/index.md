@@ -10,18 +10,23 @@ through package entry points, and a shared method-interceptor chain that
 transactions, caching, security, and retry will all compose on.
 
 !!! note "Status"
-    **v0.1.0 — M1 (foundation) complete.** The container, AOP, events, and
-    boot layers shipped. Web, transactions, security, and caching are
+    **M2 (web) complete — v0.2.0 in progress.** M1 shipped the container,
+    AOP, events, and boot layers; M2 adds `@RestController` apps over
+    FastAPI, the REQUEST bean scope, `@ControllerAdvice`/`@WebMiddleware`,
+    uvicorn serving from `run()`, actuator endpoints, and the
+    `pyleaf_client` test fixture. Transactions, security, and caching are
     planned milestones; see the feature chart in the repository README.
 
 ## Packages
 
 | Distribution | Import | Purpose |
 |---|---|---|
-| `pyleaf-core` | `pyleaf.core` | DI container, stereotypes, lifecycle, conditions + report, AOP interceptors, `Environment`, events |
-| `pyleaf-boot` | `pyleaf.boot` | `PyleafApplication.run()`, auto-configuration ordering/discovery, `application.yaml` loading, `@ConfigurationProperties`, graceful shutdown |
+| `pyleaf-core` | `pyleaf.core` | DI container, stereotypes, lifecycle, conditions + report, AOP interceptors, `Environment`, events, REQUEST scope |
+| `pyleaf-boot` | `pyleaf.boot` | `PyleafApplication.run()`, auto-configuration ordering/discovery, `application.yaml` loading, `@ConfigurationProperties`, graceful shutdown, uvicorn server mode |
 | `pyleaf-starter-sqlalchemy` | `pyleaf.starter.sqlalchemy` | Reference starter: conditional `Engine` + `sessionmaker` beans |
-| `pyleaf-test` | `pyleaf.test` | pytest plugin: `@PyleafTest`, `pyleaf_context` fixture, `mock_bean`/`spy_bean` |
+| `pyleaf-test` | `pyleaf.test` | pytest plugin: `@PyleafTest`, `pyleaf_context` + `pyleaf_client` fixtures, `mock_bean`/`spy_bean` |
+| `pyleaf-web` | `pyleaf.web` | `@RestController` + `@*Mapping` over FastAPI, `@ControllerAdvice`, `@WebMiddleware`, `WebAutoConfiguration` |
+| `pyleaf-actuator` | `pyleaf.actuator` | `/actuator/{health,info,env,beans,conditions,metrics}` with secret masking |
 
 ## Design pillars
 
