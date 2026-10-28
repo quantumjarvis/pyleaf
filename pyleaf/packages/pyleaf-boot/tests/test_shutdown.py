@@ -109,7 +109,9 @@ def test_sigterm_after_run_closes_ctx(
     monkeypatch.syspath_prepend(str(tmp_path))
     importlib.invalidate_caches()
 
-    PyleafApplication.run("sigapp", (), config_dir=tmp_path, banner=False)
+    PyleafApplication.run(
+        "sigapp", (), config_dir=tmp_path, banner=False, no_server=True
+    )
     sigapp = importlib.import_module("sigapp")
 
     os.kill(os.getpid(), signal.SIGTERM)
@@ -138,7 +140,11 @@ def test_run_off_main_thread_still_returns_ctx(tmp_path: Path) -> None:
             try:
                 results.append(
                     PyleafApplication.run(
-                        "offapp", (), config_dir=tmp_path, banner=False
+                        "offapp",
+                        (),
+                        config_dir=tmp_path,
+                        banner=False,
+                        no_server=True,
                     )
                 )
             except Exception as exc:

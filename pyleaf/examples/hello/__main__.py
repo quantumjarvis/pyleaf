@@ -18,7 +18,7 @@ _CONFIG_DIR = Path(__file__).resolve().parent
 
 def main() -> None:
     """Boot, greet, exercise the aspect and probe for the Engine bean."""
-    ctx = PyleafApplication.run("hello", config_dir=_CONFIG_DIR)
+    ctx = PyleafApplication.run("hello", config_dir=_CONFIG_DIR, no_server=True)
     try:
         service = ctx.get(GreetingService)
         print(service.greet())

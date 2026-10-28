@@ -82,7 +82,9 @@ def test_run_returns_refreshed_ctx_with_env_and_beans(
         "app:\n  greeting: hello\n", encoding="utf-8"
     )
 
-    ctx = PyleafApplication.run("apppkg", (), config_dir=tmp_path, banner=False)
+    ctx = PyleafApplication.run(
+        "apppkg", (), config_dir=tmp_path, banner=False, no_server=True
+    )
 
     assert isinstance(ctx, ApplicationContext)
     # Environment was loaded from the config dir.
@@ -95,7 +97,9 @@ def test_run_scans_and_applies_autoconfigs(
     """The user's Token bean satisfies the auto-config's OnMissingBean."""
     _make_app_tree(tmp_path, monkeypatch)
 
-    ctx = PyleafApplication.run("apppkg", (), config_dir=tmp_path, banner=False)
+    ctx = PyleafApplication.run(
+        "apppkg", (), config_dir=tmp_path, banner=False, no_server=True
+    )
 
     apppkg = importlib.import_module("apppkg")
     shared_mod = importlib.import_module("shared_mod")
@@ -114,7 +118,7 @@ def test_run_invokes_runners_in_order(
     apppkg.calls.clear()
 
     PyleafApplication.run(
-        "apppkg", ("--x=1",), config_dir=tmp_path, banner=False
+        "apppkg", ("--x=1",), config_dir=tmp_path, banner=False, no_server=True
     )
 
     assert apppkg.calls == [
@@ -128,7 +132,9 @@ def test_banner_prints_when_enabled(
 ) -> None:
     _make_app_tree(tmp_path, monkeypatch)
 
-    PyleafApplication.run("apppkg", (), config_dir=tmp_path, banner=True)
+    PyleafApplication.run(
+        "apppkg", (), config_dir=tmp_path, banner=True, no_server=True
+    )
 
     out = capsys.readouterr().out
     assert "pyleaf" in out
@@ -140,7 +146,9 @@ def test_banner_suppressed_by_flag(
 ) -> None:
     _make_app_tree(tmp_path, monkeypatch)
 
-    PyleafApplication.run("apppkg", (), config_dir=tmp_path, banner=False)
+    PyleafApplication.run(
+        "apppkg", (), config_dir=tmp_path, banner=False, no_server=True
+    )
 
     assert capsys.readouterr().out == ""
 
@@ -151,7 +159,11 @@ def test_banner_suppressed_by_property(
     _make_app_tree(tmp_path, monkeypatch)
 
     PyleafApplication.run(
-        "apppkg", ("--pyleaf.banner=false",), config_dir=tmp_path, banner=True
+        "apppkg",
+        ("--pyleaf.banner=false",),
+        config_dir=tmp_path,
+        banner=True,
+        no_server=True,
     )
 
     assert "pyleaf" not in capsys.readouterr().out
@@ -162,7 +174,11 @@ def test_run_is_repeatable(
 ) -> None:
     _make_app_tree(tmp_path, monkeypatch)
 
-    ctx1 = PyleafApplication.run("apppkg", (), config_dir=tmp_path, banner=False)
-    ctx2 = PyleafApplication.run("apppkg", (), config_dir=tmp_path, banner=False)
+    ctx1 = PyleafApplication.run(
+        "apppkg", (), config_dir=tmp_path, banner=False, no_server=True
+    )
+    ctx2 = PyleafApplication.run(
+        "apppkg", (), config_dir=tmp_path, banner=False, no_server=True
+    )
 
     assert ctx1 is not ctx2

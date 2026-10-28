@@ -43,8 +43,8 @@ class BeanDefinition:
     # Conditions marked by @ConditionalOn* decorators (class or @Bean method).
     conditions: list[Any] = field(default_factory=list)
     # Internal beans are framework plumbing registered by the context itself
-    # (environment, eventPublisher): injectable, but never advised or scanned
-    # for event listeners.
+    # (environment, eventPublisher, applicationContext): injectable, but
+    # never advised or scanned for event listeners.
     internal: bool = False
 
 
@@ -101,12 +101,18 @@ class BeanRegistry:
             found: list[BeanDefinition] = []
             for defn in self._defs.values():
                 try:
-                    if issubclass(defn.bean_type, required):
-                        found.append(defn)
+                    if not issubclass(defn.bean_type, required):
+                        continue
                 except TypeError:
                     # bean_type or required is not a class
                     # (e.g. non-checkable Protocol)
                     continue
+                if defn.internal and defn.bean_type is not required:
+                    # Internal plumbing resolves by its exact declared type
+                    # only, so e.g. applicationContext (which implements
+                    # EventPublisher) does not shadow the eventPublisher bean.
+                    continue
+                found.append(defn)
             hit = tuple(found)
             try:
                 self._candidates[required] = hit

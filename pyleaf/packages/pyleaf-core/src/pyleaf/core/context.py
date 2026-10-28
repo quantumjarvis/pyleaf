@@ -192,6 +192,17 @@ class ApplicationContext:
                 internal=True,
             )
         )
+        # Expose the context itself: configuration beans that must wire
+        # framework objects through the container (e.g. the web
+        # auto-configuration building the FastAPI app) inject it by type.
+        self._registry.register(
+            BeanDefinition(
+                name="applicationContext",
+                bean_type=ApplicationContext,
+                factory=lambda: self,
+                internal=True,
+            )
+        )
 
     def register(self, cls: type[T]) -> type[T]:
         """Register a component-stereotype, ``@Configuration`` or
