@@ -1,0 +1,130 @@
+# CI for the pyleaf workspace (Jira PYL-20).
+#
+# Layout note: the repo root contains the uv workspace in the pyleaf/
+# SUBDIRECTORY, so every `run` step defaults to working-directory: pyleaf.
+# setup-uv is also pointed at pyleaf/ so its pyproject.toml/uv.lock are the
+# cache-key and version inputs.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: pyleaf
+
+jobs:
+  lint:
+    name: lint (ruff + mypy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          working-directory: pyleaf
+          enable-cache: true
+          cache-python: true
+          python-version: "3.12"
+      - run: uv sync --locked
+      - name: ruff check
+        run: uv run ruff check .
+      - name: mypy --strict
+        run: >-
+          uv run mypy --strict
+          packages/pyleaf-core/src
+          packages/pyleaf-boot/src
+          packages/pyleaf-starter-sqlalchemy/src
+          packages/pyleaf-test/src
+
+  test:
+    name: test (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          working-directory: pyleaf
+          enable-cache: true
+          cache-python: true
+          python-version: ${{ matrix.python-version }}
+      - run: uv sync --locked
+      - run: uv run pytest -q
+
+  benchmarks:
+    name: benchmarks (m1 + baseline compare)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          working-directory: pyleaf
+          enable-cache: true
+          cache-python: true
+          python-version: "3.12"
+      - run: uv sync --locked
+      # Single run both executes the benchmarks (each asserts its own M1
+      # threshold) and compares against the committed baseline.
+      # pytest-benchmark accepts --benchmark-compare-fail=<stat>:<tolerance>,
+      # so we gate on median:15% (fail if the new median regresses >15% vs
+      # the baseline's median). NOTE: runner-timing jitter can make
+      # microbenchmark comparisons noisy; tighten if this flakes.
+      - name: pytest benchmarks/m1 vs benchmarks/baselines/local.json
+        run: >-
+          uv run pytest benchmarks/m1 -q
+          --benchmark-compare=benchmarks/baselines/local.json
+          --benchmark-compare-fail=median:15%
+
+  e2e:
+    name: e2e (m1 contract)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          working-directory: pyleaf
+          enable-cache: true
+          cache-python: true
+          python-version: "3.12"
+      - run: uv sync --locked
+      # e2e_m1.sh creates a fresh .e2e-venv via `uv venv` and `uv pip install
+      # -e packages/...`; that install hits PyPI for runtime deps
+      # (sqlalchemy, PyYAML), so this job requires network access.
+      - run: bash scripts/e2e_m1.sh
+
+  quality-m1:
+    name: quality gates (m1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          working-directory: pyleaf
+          enable-cache: true
+          cache-python: true
+          python-version: "3.12"
+      - run: uv sync --locked
+      # quality_m1.sh runs pip-audit (needs network for the advisory DB),
+      # bandit, ruff, and the coverage gates. It internally uses
+      # `pytest -p no:pyleaf` so the pytest11 plugin can't pre-import
+      # sources before coverage tracing. mutmut is intentionally NOT run
+      # here (opt-in --mutmut flag; runtime is minutes — too slow for CI).
+      - run: bash scripts/quality_m1.sh
