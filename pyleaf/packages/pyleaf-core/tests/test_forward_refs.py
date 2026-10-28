@@ -1,8 +1,8 @@
+# Add tests directory to sys.path for imports
 import sys
 from pathlib import Path
 from typing import Annotated
 
-# Add tests directory to sys.path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fixture_modules.forward_ref_module import (
@@ -107,40 +107,40 @@ def test_annotated_string_annotation_injection() -> None:
 
 def test_fixture_module_integration() -> None:
     """Test that the fixture module classes work as expected."""
-    
+
     # Test UsesDep - should inject Dep
     ctx = ApplicationContext()
     ctx.register(Dep)
     ctx.register(UsesDep)
     ctx.refresh()
-    
+
     service = ctx.get(UsesDep)
     assert isinstance(service.dep, Dep)
-    
-    # Test UsesNamed - should inject NamedDep because of qualifier 
+
+    # Test UsesNamed - should inject NamedDep because of qualifier
     ctx = ApplicationContext()
     ctx.register(NamedDep)
     ctx.register(UsesNamed)
     ctx.refresh()
-    
+
     service = ctx.get(UsesNamed)
     assert isinstance(service.dep, NamedDep)  # Should be NamedDep due to qualifier
-    
-    # Test UsesList - should inject list of Dep beans 
+
+    # Test UsesList - should inject list of Dep beans
     ctx = ApplicationContext()
     ctx.register(Dep)
     ctx.register(UsesList)
     ctx.refresh()
-    
+
     service = ctx.get(UsesList)
     assert isinstance(service.deps, list)
     assert len(service.deps) == 1
     assert isinstance(service.deps[0], Dep)
-    
-    # Test UsesOptional - should inject None because OtherDep is not a component  
+
+    # Test UsesOptional - should inject None because OtherDep is not a component
     ctx = ApplicationContext()
     ctx.register(UsesOptional)
     ctx.refresh()
-    
+
     service = ctx.get(UsesOptional)
     assert service.dep is None
