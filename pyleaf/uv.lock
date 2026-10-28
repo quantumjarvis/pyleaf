@@ -10,6 +10,7 @@ resolution-markers = [
 
 [manifest]
 members = [
+    "pyleaf-actuator",
     "pyleaf-boot",
     "pyleaf-core",
     "pyleaf-starter-sqlalchemy",
@@ -1355,6 +1356,15 @@ wheels = [
 ]
 
 [[package]]
+name = "prometheus-client"
+version = "0.26.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/52/73/f1334c29c2af4cd9dba6c7817e61b611bd0215e2eb5565c6064a4de18802/prometheus_client-0.26.0.tar.gz", hash = "sha256:04a91bcf94e2cf74a44a1a874d651a2e853ed354b6e822f3b7487751465d5c2b", size = 92910, upload-time = "2026-07-24T19:36:41.893Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/a3/b69efbf4143b5b9859b977770bbbabcc2796b702fa69dc40271e45cd5a56/prometheus_client-0.26.0-py3-none-any.whl", hash = "sha256:fa93d06737aa02bacd05794768508bb97d2fbee28cb3bca04eaae92f0ca953d6", size = 64494, upload-time = "2026-07-24T19:36:40.854Z" },
+]
+
+[[package]]
 name = "py-cpuinfo2"
 version = "10.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1548,6 +1558,26 @@ wheels = [
 ]
 
 [[package]]
+name = "pyleaf-actuator"
+version = "0.1.0"
+source = { editable = "packages/pyleaf-actuator" }
+dependencies = [
+    { name = "pyleaf-web" },
+]
+
+[package.optional-dependencies]
+prometheus = [
+    { name = "prometheus-client" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "prometheus-client", marker = "extra == 'prometheus'", specifier = ">=0.20" },
+    { name = "pyleaf-web", editable = "packages/pyleaf-web" },
+]
+provides-extras = ["prometheus"]
+
+[[package]]
 name = "pyleaf-boot"
 version = "0.1.0"
 source = { editable = "packages/pyleaf-boot" }
@@ -1639,6 +1669,8 @@ dev = [
     { name = "mutmut" },
     { name = "mypy" },
     { name = "pip-audit" },
+    { name = "prometheus-client" },
+    { name = "pyleaf-actuator" },
     { name = "pyleaf-boot" },
     { name = "pyleaf-core" },
     { name = "pyleaf-starter-sqlalchemy" },
@@ -1662,6 +1694,8 @@ dev = [
     { name = "mutmut", specifier = ">=3.8.0" },
     { name = "mypy", specifier = ">=1.8" },
     { name = "pip-audit", specifier = ">=2.10.1" },
+    { name = "prometheus-client", specifier = ">=0.20" },
+    { name = "pyleaf-actuator", editable = "packages/pyleaf-actuator" },
     { name = "pyleaf-boot", editable = "packages/pyleaf-boot" },
     { name = "pyleaf-core", editable = "packages/pyleaf-core" },
     { name = "pyleaf-starter-sqlalchemy", editable = "packages/pyleaf-starter-sqlalchemy" },

@@ -53,6 +53,7 @@ from pyleaf.core import (
 from starlette.middleware.cors import CORSMiddleware
 
 from .advice import register_advice
+from .customizer import FastApiCustomizer
 from .middleware import RequestScopeMiddleware, register_middleware
 from .router import register_controllers
 
@@ -190,7 +191,8 @@ class WebAutoConfiguration:
     @Conditional(_WebEnabled)
     @ConditionalOnMissingBean(FastAPI)
     def fastapiApp(self, ctx: ApplicationContext) -> FastAPI:
-        """Build the app: controllers, advice, middleware, CORS, /health."""
+        """Build the app: controllers, advice, middleware, CORS, /health,
+        then every ``FastApiCustomizer`` bean in @Order."""
         app = FastAPI(lifespan=_make_lifespan(ctx))
         register_controllers(app, ctx)
         register_advice(app, ctx)
@@ -201,6 +203,11 @@ class WebAutoConfiguration:
         @app.get("/health")
         def health() -> dict[str, str]:
             return {"status": "UP"}
+
+        # Extension point: customizer beans (e.g. the actuator's) apply
+        # after all built-in wiring, ordered by @Order then bean name.
+        for customizer in ctx.get_all(FastApiCustomizer):
+            customizer.customize(app)
 
         return app
 

@@ -8,6 +8,7 @@ members = ["packages/*"]
 
 [dependency-groups]
 dev = [
+    "pyleaf-actuator",
     "pyleaf-core",
     "pyleaf-boot",
     "pyleaf-starter-sqlalchemy",
@@ -23,11 +24,13 @@ dev = [
     "bandit>=1.9.4",
     "pytest-cov>=7.1.0",
     "httpx>=0.27",
+    "prometheus-client>=0.20",
     "mutmut>=3.8.0",
     "mkdocs-material>=9",
 ]
 
 [tool.uv.sources]
+pyleaf-actuator = { workspace = true }
 pyleaf-core = { workspace = true }
 pyleaf-boot = { workspace = true }
 pyleaf-starter-sqlalchemy = { workspace = true }
@@ -46,6 +49,7 @@ strict = true
 # ``pyleaf.core`` / ``pyleaf.boot`` instead of top-level names.
 explicit_package_bases = true
 mypy_path = [
+    "packages/pyleaf-actuator/src",
     "packages/pyleaf-core/src",
     "packages/pyleaf-boot/src",
     "packages/pyleaf-starter-sqlalchemy/src",

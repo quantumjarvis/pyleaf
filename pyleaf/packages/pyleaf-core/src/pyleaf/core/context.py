@@ -458,6 +458,14 @@ class ApplicationContext:
         """The context's property environment."""
         return self._environment
 
+    def bean_definitions(self) -> tuple[BeanDefinition, ...]:
+        """All registered bean definitions, in registration order.
+
+        A read-only view for introspection — e.g. the actuator ``/beans``
+        endpoint enumerates definitions without instantiating anything.
+        """
+        return tuple(self._registry.all())
+
     def _evaluate_conditions(self) -> None:
         """Drop non-matching conditional defs; record every one in the report."""
         report = ConditionEvaluationReport()

@@ -71,11 +71,11 @@ def build_router(ctx: ApplicationContext) -> APIRouter:
     router = APIRouter()
     defs = [
         defn
-        for defn in ctx._registry.all()
+        for defn in ctx.bean_definitions()
         if isinstance(defn.bean_type, type)
         and getattr(defn.bean_type, REST_CONTROLLER_ATTR, None) is not None
     ]
-    # ``BeanRegistry.all()`` is registration order; the sort is stable.
+    # ``bean_definitions()`` is registration order; the sort is stable.
     defs.sort(key=lambda d: d.order)
     for defn in defs:
         instance = ctx.get_bean(defn.name)

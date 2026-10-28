@@ -118,11 +118,11 @@ def register_middleware(app: FastAPI, ctx: ApplicationContext) -> FastAPI:
     """
     defs = [
         defn
-        for defn in ctx._registry.all()
+        for defn in ctx.bean_definitions()
         if isinstance(defn.bean_type, type)
         and getattr(defn.bean_type, WEB_MIDDLEWARE_ATTR, None) is not None
     ]
-    # ``BeanRegistry.all()`` is registration order; the sort is stable.
+    # ``bean_definitions()`` is registration order; the sort is stable.
     defs.sort(key=lambda d: d.order)
     # Starlette's last-registered middleware is outermost; registering in
     # descending @Order puts the lowest @Order on the outside.
