@@ -1,6 +1,7 @@
 """Web functionality for pyleaf: REST controllers over FastAPI."""
 
-from .middleware import RequestScopeMiddleware
+from .advice import ControllerAdvice, ExceptionHandler, register_advice
+from .middleware import RequestScopeMiddleware, WebMiddleware, register_middleware
 from .router import build_router, register_controllers
 from .stereotypes import (
     DeleteMapping,
@@ -13,7 +14,9 @@ from .stereotypes import (
 )
 
 __all__ = [
+    "ControllerAdvice",
     "DeleteMapping",
+    "ExceptionHandler",
     "GetMapping",
     "PatchMapping",
     "PostMapping",
@@ -21,6 +24,9 @@ __all__ = [
     "RequestMapping",
     "RequestScopeMiddleware",
     "RestController",
+    "WebMiddleware",
     "build_router",
+    "register_advice",
     "register_controllers",
+    "register_middleware",
 ]
