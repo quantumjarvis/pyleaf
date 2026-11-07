@@ -87,12 +87,17 @@ jobs:
       # results as an artifact, and (b) compares medians against
       # benchmarks/baselines/github.json when that file exists (seeded once
       # from a CI artifact; rebaseline deliberately, never silently). The m2
-      # and m3 rows enter github.json from the next CI artifact, same flow as m1.
+      # and m3 rows enter github.json from the next CI artifact, same flow as
+      # m1. The median compare tolerance is 25%, not 15%: ubuntu-latest is
+      # hardware-heterogeneous (AMD EPYC vs Intel generations vary run to
+      # run), so the seeded baseline plus a 15% margin produced false
+      # 15.4-17.7% "regressions" on identical code. 25% still gates real
+      # regressions.
       - name: pytest benchmarks m1 + m2 + m3 (+ compare vs github.json when seeded)
         run: |
           COMPARE=""
           if [ -f benchmarks/baselines/github.json ]; then
-            COMPARE="--benchmark-compare=benchmarks/baselines/github.json --benchmark-compare-fail=median:15%"
+            COMPARE="--benchmark-compare=benchmarks/baselines/github.json --benchmark-compare-fail=median:25%"
           fi
           # shellcheck disable=SC2086 # word-splitting intended for COMPARE flags
           uv run pytest benchmarks/m1 benchmarks/m2 benchmarks/m3 -q --benchmark-save=ci $COMPARE
