@@ -1,16 +1,18 @@
 # pyleaf benchmarks
 
-Performance benchmark suites for M1 (Jira PYL-18) and M2 (Jira PYL-29).
-Benchmarks live under `benchmarks/m1/` and `benchmarks/m2/` and are
-deliberately **excluded** from the default pytest `testpaths`
-(`packages/*/tests`) — they only run when explicitly targeted.
+Performance benchmark suites for M1 (Jira PYL-18), M2 (Jira PYL-29) and
+M3 (Jira PYL-32). Benchmarks live under `benchmarks/m1/`,
+`benchmarks/m2/` and `benchmarks/m3/` and are deliberately **excluded**
+from the default pytest `testpaths` (`packages/*/tests`) — they only run
+when explicitly targeted.
 
 ## Run
 
 ```bash
 uv run pytest benchmarks/m1 -q          # m1 benchmarks + threshold asserts
 uv run pytest benchmarks/m2 -q          # m2 benchmarks + threshold asserts
-uv run pytest benchmarks/m2 --benchmark-only -q
+uv run pytest benchmarks/m3 -q          # m3 benchmarks + threshold asserts
+uv run pytest benchmarks/m3 --benchmark-only -q
 ```
 
 Every benchmark asserts its threshold, so a regression fails the suite
@@ -45,6 +47,12 @@ The middleware gate is a delta against a hand-mounted
 `BaseHTTPMiddleware` stack: Starlette's own plumbing (~130 us/hop) is
 machinery pyleaf does not control, so what is gated is the latency the
 bean layer adds per hop.
+
+M3 (transaction infrastructure):
+
+| Benchmark | Threshold |
+|---|---|
+| `test_bench_tx_resource_lookup.py` `TSM.get_resource` on an active context | < 1 us |
 
 ## M2 memory soak
 

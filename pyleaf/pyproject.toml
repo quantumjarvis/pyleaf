@@ -13,6 +13,7 @@ dev = [
     "pyleaf-boot",
     "pyleaf-starter-sqlalchemy",
     "pyleaf-test",
+    "pyleaf-tx",
     "pyleaf-web",
     "pytest>=8",
     "pytest-asyncio>=0.23",
@@ -35,6 +36,7 @@ pyleaf-core = { workspace = true }
 pyleaf-boot = { workspace = true }
 pyleaf-starter-sqlalchemy = { workspace = true }
 pyleaf-test = { workspace = true }
+pyleaf-tx = { workspace = true }
 pyleaf-web = { workspace = true }
 
 [tool.pytest.ini_options]
@@ -54,6 +56,7 @@ mypy_path = [
     "packages/pyleaf-boot/src",
     "packages/pyleaf-starter-sqlalchemy/src",
     "packages/pyleaf-test/src",
+    "packages/pyleaf-tx/src",
     "packages/pyleaf-web/src",
 ]
 

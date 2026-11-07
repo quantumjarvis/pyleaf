@@ -67,7 +67,7 @@ jobs:
       - run: uv run pytest -q
 
   benchmarks:
-    name: benchmarks (m1 + m2 + baseline compare)
+    name: benchmarks (m1 + m2 + m3 + baseline compare)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -86,15 +86,15 @@ jobs:
       # results as an artifact, and (b) compares medians against
       # benchmarks/baselines/github.json when that file exists (seeded once
       # from a CI artifact; rebaseline deliberately, never silently). The m2
-      # rows enter github.json from the next CI artifact, same flow as m1.
-      - name: pytest benchmarks m1 + m2 (+ compare vs github.json when seeded)
+      # and m3 rows enter github.json from the next CI artifact, same flow as m1.
+      - name: pytest benchmarks m1 + m2 + m3 (+ compare vs github.json when seeded)
         run: |
           COMPARE=""
           if [ -f benchmarks/baselines/github.json ]; then
             COMPARE="--benchmark-compare=benchmarks/baselines/github.json --benchmark-compare-fail=median:15%"
           fi
           # shellcheck disable=SC2086 # word-splitting intended for COMPARE flags
-          uv run pytest benchmarks/m1 benchmarks/m2 -q --benchmark-save=ci $COMPARE
+          uv run pytest benchmarks/m1 benchmarks/m2 benchmarks/m3 -q --benchmark-save=ci $COMPARE
       # M2 memory gate: contextvar request scopes must not leak instances or
       # teardown callbacks across 100k sequential requests (< 20MB RSS growth).
       - name: request-scope memory soak (m2)
