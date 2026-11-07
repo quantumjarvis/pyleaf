@@ -600,6 +600,43 @@
                 "total": 0.6403094323322875,
                 "iterations": 1
             }
+        },
+        {
+            "group": null,
+            "name": "test_tx_resource_lookup",
+            "fullname": "benchmarks/m3/test_bench_tx_resource_lookup.py::test_tx_resource_lookup",
+            "params": null,
+            "param": null,
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "precision": null,
+                "confidence": null,
+                "warmup": false
+            },
+            "stats": {
+                "min": 6.458023563027382e-08,
+                "max": 9.64874983765185e-06,
+                "mean": 7.893221865107975e-08,
+                "stddev": 5.85453741926416e-08,
+                "rounds": 135593,
+                "median": 7.417052984237671e-08,
+                "iqr": 4.169996827840811e-09,
+                "q1": 7.249996997416019e-08,
+                "q3": 7.6669966802001e-08,
+                "iqr_outliers": 9579,
+                "stddev_outliers": 2322,
+                "outliers": "2322;9579",
+                "ld15iqr": 6.624963134527207e-08,
+                "hd15iqr": 8.332892321050167e-08,
+                "ops": 12669097.829626514,
+                "total": 0.010702656323555857,
+                "iterations": 100
+            }
         }
     ],
     "datetime": "2026-10-28T20:33:39.998750+00:00",
