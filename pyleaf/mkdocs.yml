@@ -31,6 +31,8 @@ nav:
       - pyleaf-starter-sqlalchemy: packages/starter-sqlalchemy.md
       - pyleaf-data: packages/data.md
       - pyleaf-test: packages/test.md
+      - pyleaf-tx: tx.md
+      - pyleaf-security: security.md
       - pyleaf-web: web.md
       - pyleaf-actuator: actuator.md
 

@@ -1,0 +1,36 @@
+app:
+  name: "bank"
+  datasource:
+    # File-backed sqlite: sessions are opened per transaction and FastAPI
+    # may run sync handlers on different worker threads, so an in-memory
+    # database (one connection per thread) would lose data — and the e2e
+    # inspects the file after the run anyway.
+    url: "sqlite:///./bank.db"
+    pool_size: 5
+    echo: false
+info:
+  app:
+    name: "bank"
+    version: "0.3.0"
+pyleaf:
+  logging:
+    level: INFO
+  web:
+    host: "127.0.0.1"
+    port: 8080
+    access-log: false
+  actuator:
+    base-path: "/actuator"
+  security:
+    # Everything requires authentication unless a rule below says
+    # otherwise; the built-in rule appended after these protects
+    # /actuator/** behind the ACTUATOR role.
+    default-access: authenticated
+    jwt:
+      # HS256 shared key — dev/e2e material only, never a real secret.
+      # The e2e script mints its TELLER/VIEWER tokens with this value.
+      secret: "bank-e2e-hs256-key-not-for-production"
+    rules:
+      # The readiness probe used by scripts/e2e_m3.sh stays anonymous.
+      - path: /health
+        access: permit_all
