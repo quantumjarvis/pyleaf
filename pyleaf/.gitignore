@@ -9,3 +9,4 @@ mutants/
 .coverage
 site/
 todo-api.db
+bank.db

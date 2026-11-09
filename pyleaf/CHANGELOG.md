@@ -4,6 +4,70 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Milestone 3 — transactions, data and security. `pyleaf-tx` (declarative
+transactions), `pyleaf-data` (typed repositories), `pyleaf-security`
+(JWT + method security), SQLAlchemy transaction managers in the
+starter, and the `examples/bank` showcase app. Tagging happens in Q3;
+this section collects the release notes meanwhile.
+
+### Added
+
+- **pyleaf-tx: transaction model + interceptor** (WI 3.1–3.2):
+  `TransactionDefinition`/`TransactionStatus`/`CompletionStatus`
+  structures; `TransactionManager`/`AsyncTransactionManager`/
+  `TransactionSynchronization` protocols; the contextvars-bound
+  `TransactionSynchronizationManager` (copy-on-write snapshots,
+  suspend/resume); `@Transactional` on methods or classes with
+  `propagation`/`isolation`/`read_only`/`timeout`/rollback-rule options
+  and lazy manager resolution (named bean, else protocol type);
+  `@Order(100)` aspect advice sharing the same boundary executor as
+  `TransactionTemplate` (`execute(fn)`, `with`/`async with` blocks);
+  rollback on any `Exception` unless `no_rollback_for`.
+- **@TransactionalEventListener** (WI 3.3): event delivery bound to
+  `TxPhase` (`BEFORE_COMMIT`/`AFTER_COMMIT`/`AFTER_ROLLBACK`/
+  `AFTER_COMPLETION`) via a per-transaction synchronization — each
+  event delivered exactly once at its phase; `fallback_execution`
+  controls the no-transaction case; coroutine listeners rejected.
+- **SQLAlchemy transaction managers** (WI 3.4):
+  `SqlAlchemyTransactionManager`/`AsyncSqlAlchemyTransactionManager` in
+  the starter — session lifecycle owned by the manager (NESTED
+  savepoints, REQUIRES_NEW suspend, joined rollback-only marking,
+  `UnexpectedRollbackError`), `current_session`/`current_async_session`
+  resource lookup keyed by sessionmaker, best-effort
+  isolation/read-only/timeout per dialect; `sessionfactory` +
+  `sqlalchemyTransactionManager` beans auto-configured.
+- **pyleaf-data** (WI 3.5–3.6): `CrudRepository[T, ID]` /
+  `AsyncCrudRepository` concrete generic bases (`save` via merge,
+  `find_by_id`, `find_all(sort=, pageable=)` -> `Page`, `exists_by_id`,
+  `count`, `delete`) joining the ambient transaction —
+  `NoTransactionError` outside one; `bean=True` applies `@Repository`;
+  `@Query` statement methods; `Page`/`Pageable`/`Sort` paging;
+  `DataAutoConfiguration` with `@EnableTransactionManagement` opt-in
+  marker and Alembic migrate-on-start (`pyleaf.data.migrate-on-start`).
+- **pyleaf-security** (WI 3.7–3.8): `SecurityMiddleware` authenticating
+  `Authorization: Bearer` through ordered `AuthenticationProvider`
+  beans and binding `SecurityContextHolder` per request;
+  `JwtAuthenticationProvider` (HS256 `secret` / RS256 `public-key`,
+  required `exp`, optional issuer/audience, `roles`→`ROLE_*`,
+  `scope`→`SCOPE_*` claims); ordered Ant-style `pyleaf.security.rules`
+  with `default-access` secure-all fallback; built-in `/actuator/**`
+  -> `ACTUATOR` rule; `@Secured`/`@PreAuthorize`/`@PostAuthorize` with
+  a whitelist expression interpreter (parsed once — no dynamic code);
+  `@Order(50)` advice outside the tx interceptor; `{id}hash`
+  `DelegatingPasswordEncoder` (argon2 preferred, bcrypt supported).
+- **bank example + M3 e2e + docs** (WI 3.9): `examples/bank` —
+  `POST /transfer` (`@Secured("TELLER")`) moving money inside a
+  `@Transactional` boundary with a deliberate mid-way
+  `InsufficientFundsError`, `REQUIRES_NEW` audit rows that survive
+  rollback, an `AFTER_COMMIT` notification through a stub mailer
+  (`GET /probe/outbox` observability), `CrudRepository` beans, JWT
+  config and a `permit_all` `/health` rule; `scripts/e2e_m3.sh`
+  fresh-venv real-uvicorn HTTP contract (commit/rollback outcomes,
+  exactly-once notification, 401/403 gates, protected actuator);
+  `docs/tx.md`, `docs/security.md`.
+
 ## [0.2.0] - 2026-10-28
 
 Milestone 2 — web. `pyleaf-web` (Spring-style class controllers over
