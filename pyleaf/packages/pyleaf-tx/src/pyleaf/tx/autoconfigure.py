@@ -24,6 +24,7 @@ from __future__ import annotations
 from pyleaf.core import ApplicationContext, Bean, Configuration
 from pyleaf.core.stereotypes import ORDER_ATTR
 
+from .events import TxEventListenerPostProcessor
 from .interceptor import TX_ORDER_PROPERTY, TransactionInterceptor
 
 
@@ -43,6 +44,15 @@ class TxAutoConfiguration:
         if isinstance(order, int):
             setattr(TransactionInterceptor, ORDER_ATTR, order)
         return TransactionInterceptor(ctx)
+
+    @Bean
+    def txEventListenerPostProcessor(self) -> TxEventListenerPostProcessor:
+        """The BPP wiring ``@TransactionalEventListener`` deferral.
+
+        Registered unconditionally like the interceptor: with no marked
+        listener methods it is a no-op.
+        """
+        return TxEventListenerPostProcessor()
 
 
 __all__ = ["TxAutoConfiguration"]
