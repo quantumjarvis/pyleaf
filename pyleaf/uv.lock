@@ -13,6 +13,7 @@ members = [
     "pyleaf-actuator",
     "pyleaf-boot",
     "pyleaf-core",
+    "pyleaf-data",
     "pyleaf-starter-sqlalchemy",
     "pyleaf-test",
     "pyleaf-tx",
@@ -1860,6 +1861,25 @@ dependencies = [
 requires-dist = [{ name = "wrapt", specifier = ">=1.16" }]
 
 [[package]]
+name = "pyleaf-data"
+version = "0.1.0"
+source = { editable = "packages/pyleaf-data" }
+dependencies = [
+    { name = "pyleaf-core" },
+    { name = "pyleaf-starter-sqlalchemy" },
+    { name = "pyleaf-tx" },
+    { name = "sqlalchemy" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pyleaf-core", editable = "packages/pyleaf-core" },
+    { name = "pyleaf-starter-sqlalchemy", editable = "packages/pyleaf-starter-sqlalchemy" },
+    { name = "pyleaf-tx", editable = "packages/pyleaf-tx" },
+    { name = "sqlalchemy", specifier = ">=2" },
+]
+
+[[package]]
 name = "pyleaf-starter-sqlalchemy"
 version = "0.1.0"
 source = { editable = "packages/pyleaf-starter-sqlalchemy" }
@@ -1949,6 +1969,7 @@ dev = [
     { name = "pyleaf-actuator" },
     { name = "pyleaf-boot" },
     { name = "pyleaf-core" },
+    { name = "pyleaf-data" },
     { name = "pyleaf-starter-sqlalchemy" },
     { name = "pyleaf-test" },
     { name = "pyleaf-tx" },
@@ -1980,6 +2001,7 @@ dev = [
     { name = "pyleaf-actuator", editable = "packages/pyleaf-actuator" },
     { name = "pyleaf-boot", editable = "packages/pyleaf-boot" },
     { name = "pyleaf-core", editable = "packages/pyleaf-core" },
+    { name = "pyleaf-data", editable = "packages/pyleaf-data" },
     { name = "pyleaf-starter-sqlalchemy", editable = "packages/pyleaf-starter-sqlalchemy" },
     { name = "pyleaf-test", editable = "packages/pyleaf-test" },
     { name = "pyleaf-tx", editable = "packages/pyleaf-tx" },
