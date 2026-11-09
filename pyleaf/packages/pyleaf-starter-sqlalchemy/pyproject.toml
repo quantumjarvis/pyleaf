@@ -4,6 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "pyleaf-boot",
+    "pyleaf-tx",
     "sqlalchemy>=2",
 ]
 
@@ -19,3 +20,4 @@ packages = ["src/pyleaf"]
 
 [tool.uv.sources]
 pyleaf-boot = { workspace = true }
+pyleaf-tx = { workspace = true }
