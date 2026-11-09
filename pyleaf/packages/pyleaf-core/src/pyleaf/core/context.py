@@ -299,6 +299,7 @@ class ApplicationContext:
                 config_name, method_name, func, owner
             ),
             scope=bean_meta.scope,
+            primary=bool(getattr(func, PRIMARY_ATTR, False)),
             lazy=False,
             dep_specs=dep_specs,
             conditions=conditions_of(func),

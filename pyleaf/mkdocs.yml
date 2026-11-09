@@ -29,6 +29,7 @@ nav:
       - pyleaf-core: packages/core.md
       - pyleaf-boot: packages/boot.md
       - pyleaf-starter-sqlalchemy: packages/starter-sqlalchemy.md
+      - pyleaf-data: packages/data.md
       - pyleaf-test: packages/test.md
       - pyleaf-web: web.md
       - pyleaf-actuator: actuator.md
