@@ -11,6 +11,7 @@ dev = [
     "pyleaf-actuator",
     "pyleaf-core",
     "pyleaf-boot",
+    "pyleaf-data",
     "pyleaf-starter-sqlalchemy",
     "pyleaf-test",
     "pyleaf-tx",
@@ -39,6 +40,7 @@ dev = [
 pyleaf-actuator = { workspace = true }
 pyleaf-core = { workspace = true }
 pyleaf-boot = { workspace = true }
+pyleaf-data = { workspace = true }
 pyleaf-starter-sqlalchemy = { workspace = true }
 pyleaf-test = { workspace = true }
 pyleaf-tx = { workspace = true }
@@ -59,6 +61,7 @@ mypy_path = [
     "packages/pyleaf-actuator/src",
     "packages/pyleaf-core/src",
     "packages/pyleaf-boot/src",
+    "packages/pyleaf-data/src",
     "packages/pyleaf-starter-sqlalchemy/src",
     "packages/pyleaf-test/src",
     "packages/pyleaf-tx/src",
