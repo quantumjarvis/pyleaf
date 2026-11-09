@@ -67,6 +67,42 @@ jobs:
       - run: uv sync --locked
       - run: uv run pytest -q
 
+  compat-sqlalchemy:
+    name: "compat (sqlalchemy 2.x matrix: ${{ matrix.sa-version || 'locked' }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      # "" resolves to whatever uv.lock pins (latest 2.x); "2.0" pins the
+      # declared floor (sqlalchemy>=2 in the starter/data pyprojects) via a
+      # post-sync `uv pip install` so the floor stays green as the lock drifts.
+      matrix:
+        sa-version: ["2.0", ""]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          working-directory: pyleaf
+          enable-cache: true
+          cache-python: true
+          python-version: "3.12"
+      - run: uv sync --locked
+      - name: pin sqlalchemy floor (${{ matrix.sa-version }}.x)
+        if: matrix.sa-version != ''
+        # The upper bound keeps this leg on the .x line named by the matrix
+        # value (2.0 -> >=2.0,<2.1). uv pip install auto-discovers ./.venv
+        # because working-directory is pyleaf.
+        run: uv pip install "sqlalchemy>=${{ matrix.sa-version }},<2.1"
+      # `uv run` re-syncs to uv.lock by default and would undo the floor pin;
+      # --no-sync runs against the environment as installed above.
+      - name: report resolved sqlalchemy
+        run: uv run --no-sync python -c "import sqlalchemy; print(sqlalchemy.__version__)"
+      # These suites carry the postgres testcontainer coverage (docker is
+      # available on ubuntu-latest): pyleaf-tx / pyleaf-starter-sqlalchemy /
+      # pyleaf-data spin a real postgres:16-alpine container per session.
+      - name: pytest (SA suites incl. postgres testcontainers)
+        run: uv run --no-sync pytest packages/pyleaf-tx packages/pyleaf-starter-sqlalchemy packages/pyleaf-data -q
+
   benchmarks:
     name: benchmarks (m1 + m2 + m3 + baseline compare)
     runs-on: ubuntu-latest
