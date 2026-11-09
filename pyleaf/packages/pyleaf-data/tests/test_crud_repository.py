@@ -201,14 +201,12 @@ def test_operations_require_ambient_tx(ctx: ApplicationContext) -> None:
 
 
 def test_find_by_id_overhead_vs_raw_session_get(ctx: ApplicationContext) -> None:
-    """``repo.find_by_id`` must stay under 1.10x a raw ``session.get``.
+    """``repo.find_by_id`` must stay under 1.05x a raw ``session.get``.
 
     Same-run ratio: both loops do ``expire_all()`` + one get of the same
     pk, so every iteration issues a real SELECT — the only difference is
     the repository's session-resolution + delegation overhead. Median of
-    alternating batches keeps drift out of the ratio. The 1.05 design
-    target was pinned at 1.10 after a 1.052 flake on a shared CI runner;
-    benchmarks/m3 gates the same path at 1.10.
+    alternating batches keeps drift out of the ratio.
     """
     repo = ctx.get(ItemRepo)
     manager = ctx.get(SqlAlchemyTransactionManager)
@@ -235,7 +233,7 @@ def test_find_by_id_overhead_vs_raw_session_get(ctx: ApplicationContext) -> None
             ratios.append(via_repo / raw)
 
         ratio = statistics.median(ratios)
-        assert ratio < 1.10, f"find_by_id overhead {ratio:.3f}x >= 1.10x"
+        assert ratio < 1.05, f"find_by_id overhead {ratio:.3f}x >= 1.05x"
 
 
 # -- async --------------------------------------------------------------------
