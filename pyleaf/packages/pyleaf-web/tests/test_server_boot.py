@@ -161,6 +161,10 @@ def test_run_serves_and_shuts_down_cleanly(
                     "--pyleaf.web.host=127.0.0.1",
                     f"--pyleaf.web.port={port}",
                     "--pyleaf.web.access-log=false",
+                    # pyleaf-security is installed in the dev env, so its
+                    # autoconfig mounts SecurityMiddleware and secures all
+                    # paths by default — permit them for this probe app.
+                    "--pyleaf.security.default-access=permit_all",
                 ),
                 config_dir=webapp,
                 banner=False,

@@ -37,6 +37,12 @@ dev = [
     "prometheus-client>=0.20",
     "mutmut>=3.8.0",
     "mkdocs-material>=9",
+    # Optional pyleaf-security deps (WI 3.8): runtime-gated by OnClass
+    # conditions; installed here so tests exercise the real integrations.
+    "pyjwt>=2.8",
+    "argon2-cffi>=23",
+    "bcrypt>=4",
+    "cryptography>=42",
 ]
 
 [tool.uv.sources]

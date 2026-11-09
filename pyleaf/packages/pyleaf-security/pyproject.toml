@@ -6,6 +6,14 @@ dependencies = [
     "pyleaf-core",
 ]
 
+# Optional integrations (WI 3.8) — each bean is OnClass-gated, so the
+# package works without any of these installed.
+[project.optional-dependencies]
+jwt = ["pyjwt>=2.8"]
+argon2 = ["argon2-cffi>=23"]
+bcrypt = ["bcrypt>=4"]
+web = ["pyleaf-web"]
+
 [project.entry-points."pyleaf.autoconfigure"]
 security = "pyleaf.security.autoconfig:SecurityAutoConfiguration"
 
@@ -18,3 +26,4 @@ packages = ["src/pyleaf"]
 
 [tool.uv.sources]
 pyleaf-core = { workspace = true }
+pyleaf-web = { workspace = true }
