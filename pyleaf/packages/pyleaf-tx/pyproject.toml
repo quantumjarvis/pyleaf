@@ -18,3 +18,28 @@ packages = ["src/pyleaf"]
 
 [tool.uv.sources]
 pyleaf-core = { workspace = true }
+
+# mutmut 3.x resolves source_paths relative to CWD and inserts mutants/src
+# into sys.path, so it must run from this package directory:
+#   cd packages/pyleaf-tx && uv run mutmut run
+# only_mutate scopes mutant generation to template.py (PYL-42) — the
+# propagation state machine that both @Transactional and
+# TransactionTemplate drive; the rest of src/ is copied unmutated so
+# `import pyleaf.tx` keeps working.
+#
+# Baseline: 373/382 mutants killed. The 9 survivors are equivalent
+# mutants (no observable behavior change, documented rather than
+# killed — see tests/test_tx_template_edges.py docstring):
+#   - Sync/AsyncBoundary.__init__ mutmut_6 (self._inited = None):
+#     _inited is only ever tested for truth and is unconditionally
+#     assigned before any such test.
+#   - Sync/AsyncBoundary._cleanup mutmut_1/2/5 (_inited = None/True,
+#     _suspended = ""): _cleanup runs once per boundary, after the
+#     last read of those fields — the stored value is never observed.
+#   - _TemplateTransaction.__init__ mutmut_3 (_boundary = ""): the
+#     field is unconditionally overwritten by __enter__/__aenter__
+#     before __exit__/__aexit__ reads it.
+[tool.mutmut]
+source_paths = ["src"]
+only_mutate = ["src/pyleaf/tx/template.py"]
+pytest_add_cli_args_test_selection = ["tests"]
