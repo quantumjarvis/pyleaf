@@ -12,6 +12,7 @@ dev = [
     "pyleaf-core",
     "pyleaf-boot",
     "pyleaf-data",
+    "pyleaf-security",
     "pyleaf-starter-sqlalchemy",
     "pyleaf-test",
     "pyleaf-tx",
@@ -19,6 +20,7 @@ dev = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
     "pytest-benchmark>=5",
+    "hypothesis>=6",
     "mypy>=1.8",
     "ruff>=0.5",
     "types-PyYAML>=6",
@@ -42,6 +44,7 @@ pyleaf-actuator = { workspace = true }
 pyleaf-core = { workspace = true }
 pyleaf-boot = { workspace = true }
 pyleaf-data = { workspace = true }
+pyleaf-security = { workspace = true }
 pyleaf-starter-sqlalchemy = { workspace = true }
 pyleaf-test = { workspace = true }
 pyleaf-tx = { workspace = true }
@@ -63,6 +66,7 @@ mypy_path = [
     "packages/pyleaf-core/src",
     "packages/pyleaf-boot/src",
     "packages/pyleaf-data/src",
+    "packages/pyleaf-security/src",
     "packages/pyleaf-starter-sqlalchemy/src",
     "packages/pyleaf-test/src",
     "packages/pyleaf-tx/src",
