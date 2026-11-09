@@ -42,8 +42,8 @@ from pyleaf.core.errors import PyleafError
 from .core import Authentication, GrantedAuthority, Principal, role
 from .errors import AuthenticationError
 
-# A property-name constant, not a credential — S105 does not apply.
-JWT_SECRET_PROPERTY = "pyleaf.security.jwt.secret"  # noqa: S105
+# A property-name constant, not a credential — S105/B105 does not apply.
+JWT_SECRET_PROPERTY = "pyleaf.security.jwt.secret"  # noqa: S105  # nosec B105
 JWT_PUBLIC_KEY_PROPERTY = "pyleaf.security.jwt.public-key"
 JWT_ISSUER_PROPERTY = "pyleaf.security.jwt.issuer"
 JWT_AUDIENCE_PROPERTY = "pyleaf.security.jwt.audience"
