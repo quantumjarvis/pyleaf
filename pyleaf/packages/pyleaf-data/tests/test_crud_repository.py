@@ -11,9 +11,9 @@ import time
 from typing import Any
 
 import pytest
-from data_models import Base, Item, ItemRepo
+from data_models import AsyncItemRepo, Base, Item, ItemRepo
 from pyleaf.core import ApplicationContext, Component
-from pyleaf.data import CrudRepository
+from pyleaf.data import CrudRepository, Page, Pageable, Sort
 from pyleaf.starter.sqlalchemy.tx import (
     AsyncSqlAlchemyTransactionManager,
     SqlAlchemyTransactionManager,
@@ -242,8 +242,6 @@ def test_find_by_id_overhead_vs_raw_session_get(ctx: ApplicationContext) -> None
 async def test_async_crud_roundtrip(
     actx: ApplicationContext, aiosqlite: tuple[Any, Any]
 ) -> None:
-    from data_models import AsyncItemRepo
-
     engine, sm = aiosqlite
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -264,8 +262,6 @@ async def test_async_crud_roundtrip(
 async def test_async_operations_require_ambient_tx(
     actx: ApplicationContext, aiosqlite: tuple[Any, Any]
 ) -> None:
-    from data_models import AsyncItemRepo
-
     engine, _sm = aiosqlite
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -275,3 +271,72 @@ async def test_async_operations_require_ambient_tx(
         await repo.find_by_id(1)
     with pytest.raises(NoTransactionError):
         await repo.count()
+
+
+async def test_async_find_all_sorted(
+    actx: ApplicationContext, aiosqlite: tuple[Any, Any]
+) -> None:
+    """``find_all(sort=...)`` binds the Sort to mapped columns (async path)."""
+    engine, _sm = aiosqlite
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    repo = actx.get(AsyncItemRepo)
+    tmpl = _async_template(actx)
+    async with tmpl.required():
+        await repo.save_all(
+            [
+                Item(name="alpha", price=3),
+                Item(name="beta", price=1),
+                Item(name="gamma", price=2),
+            ]
+        )
+    async with tmpl.required():
+        sorted_items = await repo.find_all(sort=Sort.asc("price"))
+        assert [i.name for i in sorted_items] == ["beta", "gamma", "alpha"]
+        # Combined sort + pageable sort: ``sort`` applies first.
+        paged = await repo.find_all(
+            sort=Sort.asc("price"),
+            pageable=Pageable(page=0, size=2, sort=Sort.desc("name")),
+        )
+        assert isinstance(paged, Page)
+        assert [i.name for i in paged.content] == ["beta", "gamma"]
+
+
+async def test_async_find_all_paged(
+    actx: ApplicationContext, aiosqlite: tuple[Any, Any]
+) -> None:
+    """A ``pageable`` returns a Page whose count(*) sees every row."""
+    engine, _sm = aiosqlite
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    repo = actx.get(AsyncItemRepo)
+    tmpl = _async_template(actx)
+    async with tmpl.required():
+        await repo.save_all(
+            [Item(name=f"i{n}", price=n) for n in range(5)]
+        )
+    async with tmpl.required():
+        page = await repo.find_all(
+            pageable=Pageable(page=1, size=2, sort=Sort.asc("name"))
+        )
+        assert isinstance(page, Page)
+        assert page.number == 1
+        assert page.size == 2
+        assert page.total_elements == 5
+        assert [i.name for i in page.content] == ["i2", "i3"]
+
+
+async def test_async_delete_by_id_missing_returns_false(
+    actx: ApplicationContext, aiosqlite: tuple[Any, Any]
+) -> None:
+    """delete_by_id on an absent pk is a no-op returning False."""
+    engine, _sm = aiosqlite
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    repo = actx.get(AsyncItemRepo)
+    async with _async_template(actx).required():
+        assert await repo.delete_by_id(424242) is False
+        assert await repo.count() == 0
