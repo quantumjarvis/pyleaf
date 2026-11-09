@@ -48,11 +48,25 @@ The middleware gate is a delta against a hand-mounted
 machinery pyleaf does not control, so what is gated is the latency the
 bean layer adds per hop.
 
-M3 (transaction infrastructure):
+M3 (transaction infrastructure + data/security hot paths):
 
 | Benchmark | Threshold |
 |---|---|
 | `test_bench_tx_resource_lookup.py` `TSM.get_resource` on an active context | < 1 us |
+| `test_bench_transactional_noop.py` `@Transactional` REQUIRED join, sync | < 20 us |
+| `test_bench_transactional_noop.py` async join (200-call batch) | < 40 us/call |
+| `test_bench_repository.py` `repo.find_by_id` vs raw `session.get`, ambient tx | same-run ratio < 1.10x and < 500 us |
+| `test_bench_jwt.py` HS256 `JwtAuthenticationProvider.authenticate` | < 100 us |
+| `test_bench_preauthorize.py` `@PreAuthorize` call vs pass-through advised call | same-run ratio < 15x and < 25 us |
+
+The repository gate is the CI-visible version of the 1.05x same-run pin
+in `packages/pyleaf-data/tests/test_crud_repository.py`: both arms
+`expire_all()` + get the same pk, so the only delta is session
+resolution + delegation. The preauthorize gate compares against a
+method advised by a no-op `@Around` aspect (same wrapper/Invocation
+dispatch, no check), so the ratio isolates the check itself — a
+completely unadvised ~0.1 us method would make the ratio measure the
+AOP dispatch already gated in m1.
 
 ## M2 memory soak
 
@@ -85,6 +99,14 @@ uv run pytest benchmarks/m1 \
   --benchmark-compare=benchmarks/baselines/local.json \
   --benchmark-compare-fail=mean:50%
 ```
+
+`benchmarks/baselines/github.json` is the CI-runner reference: it is
+seeded deliberately from saved CI artifacts (`.benchmarks/` uploaded by
+the benchmarks job) — never rebaselined in a normal commit. In CI the
+cross-run compare against it is **informational only** (see the comment
+in `.github/workflows/ci.yml`): ubuntu-latest's heterogeneous CPU pool
+produced false regressions on identical code, so the real gates are the
+absolute threshold assertions and the same-run ratio benchmarks.
 
 Note: `test_aop_async_chain_of_3` reports the per-batch median (200 awaited
 calls per measured batch); the asserted per-call threshold divides it by the
