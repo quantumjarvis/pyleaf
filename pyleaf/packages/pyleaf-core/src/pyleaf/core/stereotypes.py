@@ -245,10 +245,15 @@ def Bean(
     return wrap(target)
 
 
-def Primary(cls: type[T]) -> type[T]:
-    """Mark a bean as the primary candidate for its type."""
-    setattr(cls, PRIMARY_ATTR, True)
-    return cls
+def Primary(target: T) -> T:
+    """Mark a bean as the primary candidate for its type.
+
+    Applies to component classes and to ``@Bean`` methods alike: a method
+    marked ``@Bean`` + ``@Primary`` produces a primary definition, so an
+    unqualified injection resolves it among several same-type beans.
+    """
+    setattr(target, PRIMARY_ATTR, True)
+    return target
 
 
 @overload

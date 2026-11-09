@@ -42,6 +42,29 @@ def aiosqlite(tmp_path: Path) -> Iterator[tuple[Any, Any]]:
     asyncio.run(engine.dispose())
 
 
+@pytest.fixture(scope="session")
+def postgres_dsn() -> Iterator[str]:
+    """Session-scoped postgres testcontainer; skips cleanly without docker.
+
+    Yields ``user:pass@host:port/db`` so callers pick the driver
+    (``+psycopg`` for sync, ``+asyncpg`` for async). Mirrors the fixture
+    in the pyleaf-starter-sqlalchemy tests.
+    """
+    pytest.importorskip("testcontainers.postgres")
+    from testcontainers.postgres import PostgresContainer
+
+    container = PostgresContainer("postgres:16-alpine")
+    try:
+        container.start()
+    except Exception as exc:
+        pytest.skip(f"postgres container unavailable (docker running?): {exc}")
+    # get_connection_url() embeds a driver tag (e.g. +psycopg2); strip the
+    # scheme so callers choose their own.
+    dsn = container.get_connection_url().split("://", 1)[1]
+    yield dsn
+    container.stop()
+
+
 @pytest.fixture()
 def ctx(sqlite_sessionmaker: sessionmaker) -> Iterator[ApplicationContext]:  # type: ignore[type-arg]
     """Sync application context with ``ItemRepo`` registered."""
