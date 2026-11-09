@@ -4,13 +4,12 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.3.0] - 2026-11-09
 
 Milestone 3 — transactions, data and security. `pyleaf-tx` (declarative
 transactions), `pyleaf-data` (typed repositories), `pyleaf-security`
 (JWT + method security), SQLAlchemy transaction managers in the
-starter, and the `examples/bank` showcase app. Tagging happens in Q3;
-this section collects the release notes meanwhile.
+starter, and the `examples/bank` showcase app.
 
 ### Added
 
@@ -209,5 +208,6 @@ properties, application runner), the `pyleaf-test` pytest plugin, and the
   GitHub Actions CI; README with the full Spring→Python→pyleaf chart;
   mkdocs-material docs skeleton; this changelog.
 
+[0.3.0]: https://github.com/quantumjarvis/pyleaf/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/quantumjarvis/pyleaf/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/quantumjarvis/pyleaf/releases/tag/v0.1.0
